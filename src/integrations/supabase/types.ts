@@ -91,6 +91,41 @@ export type Database = {
           },
         ]
       }
+      order_photos: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_name: string
+          file_path: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_photos_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_services: {
         Row: {
           created_at: string
