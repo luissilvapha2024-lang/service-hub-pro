@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Plus, Search, MessageCircle, Eye, Edit, MoreHorizontal, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, Edit, MoreHorizontal, Filter, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useServiceOrders, statusConfig, type ServiceOrder, type OrderStatus } from '@/hooks/useServiceOrders';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { WhatsAppButton, generateStatusMessage } from '@/components/WhatsAppButton';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,7 @@ export default function OrdensServico() {
   const { orders, isLoading, createOrder, updateOrderStatus } = useServiceOrders();
   const { clients } = useClients();
   const { services } = useServices();
+  const { profile } = useAuth();
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -57,12 +60,14 @@ export default function OrdensServico() {
     return matchesSearch && matchesStatus;
   });
 
-  const generateWhatsAppMessage = (os: ServiceOrder) => {
-    const statusLabel = statusConfig[os.status].label;
-    const clientName = os.client?.name || 'Cliente';
-    const clientPhone = os.client?.phone || '';
-    const message = `Olá, ${clientName}! 👋\nSeu aparelho ${os.device_model} está com o status: *${statusLabel}*.\nQualquer dúvida estamos à disposição!`;
-    return `https://wa.me/55${clientPhone}?text=${encodeURIComponent(message)}`;
+  const getWhatsAppMessage = (os: ServiceOrder) => {
+    return generateStatusMessage(
+      os.client?.name || 'Cliente',
+      os.order_number,
+      os.device_model,
+      os.status,
+      profile?.company_name || undefined
+    );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -318,21 +323,15 @@ export default function OrdensServico() {
 
                   <div className="flex items-center gap-2">
                     {os.client?.phone && (
-                      <Button
-                        variant="outline"
+                      <WhatsAppButton
+                        phone={os.client.phone}
+                        message={getWhatsAppMessage(os)}
+                        variant="success"
                         size="icon"
                         className="h-9 w-9"
-                        asChild
                       >
-                        <a
-                          href={generateWhatsAppMessage(os)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Enviar mensagem no WhatsApp"
-                        >
-                          <MessageCircle className="w-4 h-4 text-success" />
-                        </a>
-                      </Button>
+                        <span className="sr-only">Enviar WhatsApp</span>
+                      </WhatsAppButton>
                     )}
 
                     <DropdownMenu>
@@ -434,6 +433,20 @@ export default function OrdensServico() {
                   <p className="font-bold text-lg text-primary">{formatCurrency(selectedOS.final_value)}</p>
                 </div>
               </div>
+
+              {selectedOS.client?.phone && (
+                <div className="pt-4 border-t">
+                  <WhatsAppButton
+                    phone={selectedOS.client.phone}
+                    message={getWhatsAppMessage(selectedOS)}
+                    variant="success"
+                    className="w-full"
+                  >
+                    <Send className="w-4 h-4 ml-1" />
+                    Enviar status via WhatsApp
+                  </WhatsAppButton>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
