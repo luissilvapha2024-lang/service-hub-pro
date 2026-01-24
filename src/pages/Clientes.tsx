@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Plus, Search, Phone, Mail, MapPin, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Phone, Mail, MapPin, MoreHorizontal, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockClientes } from '@/data/mockData';
+import { useClients, type Client } from '@/hooks/useClients';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -17,55 +16,43 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-
-interface Cliente {
-  id: string;
-  nome: string;
-  telefone: string;
-  email: string;
-  cpf: string;
-  endereco: string;
-  totalOS: number;
-  ultimaVisita: string;
-}
 
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [clientes, setClientes] = useState<Cliente[]>(mockClientes);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
-  const { toast } = useToast();
+  const [editingCliente, setEditingCliente] = useState<Client | null>(null);
+  
+  const { clients, isLoading, createClient, updateClient, deleteClient } = useClients();
 
   const [formData, setFormData] = useState({
-    nome: '',
-    telefone: '',
+    name: '',
+    phone: '',
     email: '',
     cpf: '',
-    endereco: '',
+    address: '',
   });
 
-  const filteredClientes = clientes.filter(
+  const filteredClientes = clients.filter(
     (cliente) =>
-      cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.telefone.includes(searchTerm) ||
-      cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
+      cliente.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.phone.includes(searchTerm) ||
+      (cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   );
 
   const resetForm = () => {
-    setFormData({ nome: '', telefone: '', email: '', cpf: '', endereco: '' });
+    setFormData({ name: '', phone: '', email: '', cpf: '', address: '' });
     setEditingCliente(null);
   };
 
-  const handleOpenDialog = (cliente?: Cliente) => {
+  const handleOpenDialog = (cliente?: Client) => {
     if (cliente) {
       setEditingCliente(cliente);
       setFormData({
-        nome: cliente.nome,
-        telefone: cliente.telefone,
-        email: cliente.email,
-        cpf: cliente.cpf,
-        endereco: cliente.endereco,
+        name: cliente.name,
+        phone: cliente.phone,
+        email: cliente.email || '',
+        cpf: cliente.cpf || '',
+        address: cliente.address || '',
       });
     } else {
       resetForm();
@@ -82,28 +69,21 @@ export default function Clientes() {
     e.preventDefault();
     
     if (editingCliente) {
-      // Update existing client
-      setClientes(clientes.map((c) => 
-        c.id === editingCliente.id 
-          ? { ...c, ...formData }
-          : c
-      ));
-      toast({
-        title: 'Cliente atualizado',
-        description: `${formData.nome} foi atualizado com sucesso.`,
+      updateClient.mutate({
+        id: editingCliente.id,
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || null,
+        cpf: formData.cpf || null,
+        address: formData.address || null,
       });
     } else {
-      // Create new client
-      const newCliente: Cliente = {
-        ...formData,
-        id: String(clientes.length + 1),
-        totalOS: 0,
-        ultimaVisita: new Date().toISOString().split('T')[0],
-      };
-      setClientes([...clientes, newCliente]);
-      toast({
-        title: 'Cliente cadastrado',
-        description: `${formData.nome} foi adicionado com sucesso.`,
+      createClient.mutate({
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || null,
+        cpf: formData.cpf || null,
+        address: formData.address || null,
       });
     }
     
@@ -111,12 +91,16 @@ export default function Clientes() {
   };
 
   const handleDelete = (id: string) => {
-    setClientes(clientes.filter((c) => c.id !== id));
-    toast({
-      title: 'Cliente removido',
-      description: 'O cliente foi removido com sucesso.',
-    });
+    deleteClient.mutate(id);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -136,21 +120,21 @@ export default function Clientes() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome completo</Label>
+                <Label htmlFor="name">Nome completo</Label>
                 <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone (WhatsApp)</Label>
+                  <Label htmlFor="phone">Telefone (WhatsApp)</Label>
                   <Input
-                    id="telefone"
-                    value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="11999999999"
                     required
                   />
@@ -174,18 +158,23 @@ export default function Clientes() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endereco">Endereço</Label>
+                <Label htmlFor="address">Endereço</Label>
                 <Input
-                  id="endereco"
-                  value={formData.endereco}
-                  onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Cancelar
                 </Button>
-                <Button type="submit">{editingCliente ? 'Atualizar' : 'Salvar'}</Button>
+                <Button type="submit" disabled={createClient.isPending || updateClient.isPending}>
+                  {(createClient.isPending || updateClient.isPending) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {editingCliente ? 'Atualizar' : 'Salvar'}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -204,71 +193,84 @@ export default function Clientes() {
       </div>
 
       {/* Clients Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredClientes.map((cliente) => (
-          <div
-            key={cliente.id}
-            className="bg-card rounded-xl border p-5 shadow-soft hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-foreground">{cliente.nome}</h3>
-                <p className="text-sm text-muted-foreground">{cliente.totalOS} ordens de serviço</p>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="gap-2">
-                    <Eye className="w-4 h-4" /> Ver detalhes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => handleOpenDialog(cliente)}>
-                    <Edit className="w-4 h-4" /> Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="gap-2 text-destructive"
-                    onClick={() => handleDelete(cliente.id)}
-                  >
-                    <Trash2 className="w-4 h-4" /> Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4" />
-                <a
-                  href={`https://wa.me/55${cliente.telefone}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  {cliente.telefone}
-                </a>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4" />
-                <span>{cliente.email}</span>
-              </div>
-              {cliente.endereco && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span className="truncate">{cliente.endereco}</span>
+      {filteredClientes.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>Nenhum cliente encontrado.</p>
+          <Button variant="link" onClick={() => handleOpenDialog()}>
+            Cadastrar primeiro cliente
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredClientes.map((cliente) => (
+            <div
+              key={cliente.id}
+              className="bg-card rounded-xl border p-5 shadow-soft hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-foreground">{cliente.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Cadastrado em {new Date(cliente.created_at).toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
-              )}
-            </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem className="gap-2">
+                      <Eye className="w-4 h-4" /> Ver detalhes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2" onClick={() => handleOpenDialog(cliente)}>
+                      <Edit className="w-4 h-4" /> Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2 text-destructive"
+                      onClick={() => handleDelete(cliente.id)}
+                    >
+                      <Trash2 className="w-4 h-4" /> Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-              <span>Última visita</span>
-              <span>{new Date(cliente.ultimaVisita).toLocaleDateString('pt-BR')}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="w-4 h-4" />
+                  <a
+                    href={`https://wa.me/55${cliente.phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {cliente.phone}
+                  </a>
+                </div>
+                {cliente.email && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="w-4 h-4" />
+                    <span>{cliente.email}</span>
+                  </div>
+                )}
+                {cliente.address && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span className="truncate">{cliente.address}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                <span>Última atualização</span>
+                <span>{new Date(cliente.updated_at).toLocaleDateString('pt-BR')}</span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

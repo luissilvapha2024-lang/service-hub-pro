@@ -3,22 +3,21 @@ import {
   Plus,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
   Filter,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockTransacoes } from '@/data/mockData';
+import { useTransactions, type TransactionType } from '@/hooks/useTransactions';
 import { StatCard } from '@/components/ui/stat-card';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -28,7 +27,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
   AreaChart,
@@ -41,25 +39,21 @@ import {
 } from 'recharts';
 
 export default function Financeiro() {
-  const [transacoes, setTransacoes] = useState(mockTransacoes);
   const [filterType, setFilterType] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { toast } = useToast();
+
+  const { transactions, isLoading, createTransaction, entradas, saidas, saldo } = useTransactions();
 
   const [formData, setFormData] = useState({
-    tipo: 'entrada',
-    categoria: '',
-    descricao: '',
-    valor: '',
-    formaPagamento: '',
+    type: 'entrada' as TransactionType,
+    category: '',
+    description: '',
+    amount: '',
+    payment_method: '',
   });
 
-  const entradas = transacoes.filter((t) => t.tipo === 'entrada').reduce((acc, t) => acc + t.valor, 0);
-  const saidas = transacoes.filter((t) => t.tipo === 'saida').reduce((acc, t) => acc + t.valor, 0);
-  const saldo = entradas - saidas;
-
-  const filteredTransacoes = transacoes.filter((t) =>
-    filterType === 'todos' ? true : t.tipo === filterType
+  const filteredTransacoes = transactions.filter((t) =>
+    filterType === 'todos' ? true : t.type === filterType
   );
 
   const formatCurrency = (value: number) => {
@@ -71,36 +65,58 @@ export default function Financeiro() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newTransacao = {
-      id: String(transacoes.length + 1),
-      tipo: formData.tipo as 'entrada' | 'saida',
-      categoria: formData.categoria,
-      descricao: formData.descricao,
-      valor: parseFloat(formData.valor),
-      data: new Date().toISOString().split('T')[0],
-      formaPagamento: formData.formaPagamento,
-    };
-    setTransacoes([newTransacao, ...transacoes]);
-    setFormData({ tipo: 'entrada', categoria: '', descricao: '', valor: '', formaPagamento: '' });
-    setIsDialogOpen(false);
-    toast({
-      title: 'Lançamento registrado',
-      description: `${formData.tipo === 'entrada' ? 'Entrada' : 'Saída'} de ${formatCurrency(parseFloat(formData.valor))} registrada.`,
+    createTransaction.mutate({
+      type: formData.type,
+      category: formData.category,
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+      payment_method: formData.payment_method || null,
     });
+    setFormData({ type: 'entrada', category: '', description: '', amount: '', payment_method: '' });
+    setIsDialogOpen(false);
   };
 
-  // Mock chart data
-  const chartData = [
-    { mes: 'Jan', entradas: 8500, saidas: 4200 },
-    { mes: 'Fev', entradas: 9200, saidas: 4800 },
-    { mes: 'Mar', entradas: 7800, saidas: 3900 },
-    { mes: 'Abr', entradas: 10500, saidas: 5200 },
-    { mes: 'Mai', entradas: 11200, saidas: 4600 },
-    { mes: 'Jun', entradas: 9800, saidas: 5100 },
-  ];
+  // Generate chart data from transactions (last 6 months)
+  const generateChartData = () => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const now = new Date();
+    const data = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = months[date.getMonth()];
+      
+      const monthTransactions = transactions.filter((t) => {
+        const tDate = new Date(t.created_at);
+        return tDate.getMonth() === date.getMonth() && tDate.getFullYear() === date.getFullYear();
+      });
+
+      const monthEntradas = monthTransactions
+        .filter((t) => t.type === 'entrada')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+      
+      const monthSaidas = monthTransactions
+        .filter((t) => t.type === 'saida')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      data.push({ mes: monthName, entradas: monthEntradas, saidas: monthSaidas });
+    }
+
+    return data;
+  };
+
+  const chartData = generateChartData();
 
   const categoriasEntrada = ['Serviço', 'Venda', 'Outros'];
   const categoriasSaida = ['Peças', 'Aluguel', 'Luz', 'Água', 'Internet', 'Salários', 'Outros'];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -109,13 +125,11 @@ export default function Financeiro() {
           <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
           <p className="text-muted-foreground">Controle de entradas e saídas</p>
         </div>
+        <Button className="gap-2" onClick={() => setIsDialogOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Novo Lançamento
+        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Novo Lançamento
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Novo Lançamento</DialogTitle>
@@ -126,18 +140,18 @@ export default function Financeiro() {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={formData.tipo === 'entrada' ? 'default' : 'outline'}
-                    className={cn(formData.tipo === 'entrada' && 'bg-success hover:bg-success/90')}
-                    onClick={() => setFormData({ ...formData, tipo: 'entrada', categoria: '' })}
+                    variant={formData.type === 'entrada' ? 'default' : 'outline'}
+                    className={cn(formData.type === 'entrada' && 'bg-success hover:bg-success/90')}
+                    onClick={() => setFormData({ ...formData, type: 'entrada', category: '' })}
                   >
                     <ArrowUpRight className="w-4 h-4 mr-2" />
                     Entrada
                   </Button>
                   <Button
                     type="button"
-                    variant={formData.tipo === 'saida' ? 'default' : 'outline'}
-                    className={cn(formData.tipo === 'saida' && 'bg-destructive hover:bg-destructive/90')}
-                    onClick={() => setFormData({ ...formData, tipo: 'saida', categoria: '' })}
+                    variant={formData.type === 'saida' ? 'default' : 'outline'}
+                    className={cn(formData.type === 'saida' && 'bg-destructive hover:bg-destructive/90')}
+                    onClick={() => setFormData({ ...formData, type: 'saida', category: '' })}
                   >
                     <ArrowDownRight className="w-4 h-4 mr-2" />
                     Saída
@@ -148,14 +162,14 @@ export default function Financeiro() {
               <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select
-                  value={formData.categoria}
-                  onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(formData.tipo === 'entrada' ? categoriasEntrada : categoriasSaida).map(
+                    {(formData.type === 'entrada' ? categoriasEntrada : categoriasSaida).map(
                       (cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
@@ -167,32 +181,32 @@ export default function Financeiro() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
+                <Label htmlFor="description">Descrição</Label>
                 <Input
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="valor">Valor (R$)</Label>
+                  <Label htmlFor="amount">Valor (R$)</Label>
                   <Input
-                    id="valor"
+                    id="amount"
                     type="number"
                     step="0.01"
-                    value={formData.valor}
-                    onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Forma de pagamento</Label>
                   <Select
-                    value={formData.formaPagamento}
-                    onValueChange={(value) => setFormData({ ...formData, formaPagamento: value })}
+                    value={formData.payment_method}
+                    onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -213,7 +227,10 @@ export default function Financeiro() {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" disabled={createTransaction.isPending}>
+                  {createTransaction.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -306,51 +323,57 @@ export default function Financeiro() {
             </SelectContent>
           </Select>
         </div>
-        <div className="divide-y">
-          {filteredTransacoes.map((transacao) => (
-            <div
-              key={transacao.id}
-              className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    transacao.tipo === 'entrada'
-                      ? 'bg-success/10 text-success'
-                      : 'bg-destructive/10 text-destructive'
-                  )}
-                >
-                  {transacao.tipo === 'entrada' ? (
-                    <ArrowUpRight className="w-5 h-5" />
-                  ) : (
-                    <ArrowDownRight className="w-5 h-5" />
-                  )}
+        {filteredTransacoes.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            Nenhuma transação encontrada.
+          </div>
+        ) : (
+          <div className="divide-y">
+            {filteredTransacoes.map((transacao) => (
+              <div
+                key={transacao.id}
+                className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center',
+                      transacao.type === 'entrada'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-destructive/10 text-destructive'
+                    )}
+                  >
+                    {transacao.type === 'entrada' ? (
+                      <ArrowUpRight className="w-5 h-5" />
+                    ) : (
+                      <ArrowDownRight className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{transacao.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {transacao.category} {transacao.payment_method && `• ${transacao.payment_method}`}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-foreground">{transacao.descricao}</p>
+                <div className="text-right">
+                  <p
+                    className={cn(
+                      'font-semibold',
+                      transacao.type === 'entrada' ? 'text-success' : 'text-destructive'
+                    )}
+                  >
+                    {transacao.type === 'entrada' ? '+' : '-'}
+                    {formatCurrency(Number(transacao.amount))}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {transacao.categoria} • {transacao.formaPagamento}
+                    {new Date(transacao.created_at).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p
-                  className={cn(
-                    'font-semibold',
-                    transacao.tipo === 'entrada' ? 'text-success' : 'text-destructive'
-                  )}
-                >
-                  {transacao.tipo === 'entrada' ? '+' : '-'}
-                  {formatCurrency(transacao.valor)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(transacao.data).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
