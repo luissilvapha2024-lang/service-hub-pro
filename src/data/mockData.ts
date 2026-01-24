@@ -20,10 +20,10 @@ export const mockServicos = [
 ];
 
 // Status das OS
-export type StatusOS = 'analise' | 'aguardando_autorizacao' | 'aguardando_pecas' | 'em_andamento' | 'concluido' | 'entregue' | 'pago';
+export type StatusOS = 'em_analise' | 'aguardando_autorizacao' | 'aguardando_pecas' | 'em_andamento' | 'concluido' | 'entregue' | 'pago';
 
 export const statusConfig: Record<StatusOS, { label: string; color: string; bgClass: string }> = {
-  analise: { label: 'Em Análise', color: 'info', bgClass: 'bg-info/10 text-info' },
+  em_analise: { label: 'Em Análise', color: 'info', bgClass: 'bg-info/10 text-info' },
   aguardando_autorizacao: { label: 'Aguardando Autorização', color: 'warning', bgClass: 'bg-warning/10 text-warning' },
   aguardando_pecas: { label: 'Aguardando Peças', color: 'warning', bgClass: 'bg-warning/10 text-warning' },
   em_andamento: { label: 'Em Andamento', color: 'primary', bgClass: 'bg-primary/10 text-primary' },
@@ -49,7 +49,7 @@ export const mockOrdensServico = [
     dataCriacao: '2024-01-20',
     dataAtualizacao: '2024-01-22',
     historico: [
-      { data: '2024-01-20 09:00', usuario: 'João', acao: 'OS criada', status: 'analise' },
+      { data: '2024-01-20 09:00', usuario: 'João', acao: 'OS criada', status: 'em_analise' },
       { data: '2024-01-20 14:00', usuario: 'Carlos', acao: 'Iniciou análise', status: 'em_andamento' },
     ],
   },
@@ -68,7 +68,7 @@ export const mockOrdensServico = [
     dataCriacao: '2024-01-21',
     dataAtualizacao: '2024-01-21',
     historico: [
-      { data: '2024-01-21 10:00', usuario: 'João', acao: 'OS criada', status: 'analise' },
+      { data: '2024-01-21 10:00', usuario: 'João', acao: 'OS criada', status: 'em_analise' },
       { data: '2024-01-21 11:30', usuario: 'Carlos', acao: 'Orçamento enviado', status: 'aguardando_autorizacao' },
     ],
   },
@@ -87,7 +87,7 @@ export const mockOrdensServico = [
     dataCriacao: '2024-01-18',
     dataAtualizacao: '2024-01-22',
     historico: [
-      { data: '2024-01-18 08:00', usuario: 'João', acao: 'OS criada', status: 'analise' },
+      { data: '2024-01-18 08:00', usuario: 'João', acao: 'OS criada', status: 'em_analise' },
       { data: '2024-01-19 09:00', usuario: 'Maria', acao: 'Serviço concluído', status: 'concluido' },
     ],
   },
@@ -106,7 +106,7 @@ export const mockOrdensServico = [
     dataCriacao: '2024-01-19',
     dataAtualizacao: '2024-01-22',
     historico: [
-      { data: '2024-01-19 14:00', usuario: 'João', acao: 'OS criada', status: 'analise' },
+      { data: '2024-01-19 14:00', usuario: 'João', acao: 'OS criada', status: 'em_analise' },
       { data: '2024-01-20 10:00', usuario: 'Carlos', acao: 'Peças encomendadas', status: 'aguardando_pecas' },
     ],
   },
@@ -125,7 +125,7 @@ export const mockOrdensServico = [
     dataCriacao: '2024-01-15',
     dataAtualizacao: '2024-01-17',
     historico: [
-      { data: '2024-01-15 11:00', usuario: 'João', acao: 'OS criada', status: 'analise' },
+      { data: '2024-01-15 11:00', usuario: 'João', acao: 'OS criada', status: 'em_analise' },
       { data: '2024-01-16 16:00', usuario: 'Maria', acao: 'Serviço concluído', status: 'concluido' },
       { data: '2024-01-17 10:00', usuario: 'João', acao: 'Aparelho entregue', status: 'entregue' },
     ],
