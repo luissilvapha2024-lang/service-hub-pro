@@ -1,0 +1,9 @@
+-- Inserir ordens de serviço
+INSERT INTO public.service_orders (user_id, client_id, device_model, device_imei, reported_issue, observations, status, estimated_value, final_value, completed_at, delivered_at) VALUES
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', 'ae59fcbf-bed8-48c6-a95d-0fda08219dc5', 'iPhone 13 Pro', '123456789012345', 'Tela quebrada após queda', 'Cliente solicitou película junto com a troca', 'em_andamento', 330.00, 330.00, NULL, NULL),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', '21ec660c-5ba5-400e-8521-2836e648e4c8', 'Samsung Galaxy S22', '987654321098765', 'Bateria não segura carga', 'Bateria original da Samsung', 'aguardando_autorizacao', 120.00, NULL, NULL, NULL),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', '91f10872-5621-460b-9718-fc685e80fed4', 'Motorola Edge 30', '456789123456789', 'Não carrega', 'Verificar se não é problema na placa', 'concluido', 150.00, 150.00, NOW() - INTERVAL '1 hour', NULL),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', 'cf973ace-6957-4ebf-b4fa-23d777048326', 'Xiaomi Redmi Note 12', '789123456789123', 'Placa com curto', 'Cliente relatou que o aparelho molhou', 'aguardando_pecas', 350.00, NULL, NULL, NULL),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', 'acff094d-37d3-4764-bfcb-f1806de1851d', 'iPhone 12', '321654987321654', 'Formatação solicitada', 'Fazer backup antes', 'entregue', 150.00, 150.00, NOW() - INTERVAL '1 day', NOW() - INTERVAL '2 hours'),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', 'ae59fcbf-bed8-48c6-a95d-0fda08219dc5', 'iPhone 11', '111222333444555', 'Bateria viciada', NULL, 'em_analise', 120.00, NULL, NULL, NULL),
+('a0deff3e-f8d3-46df-95a1-9ad74beb107b', '21ec660c-5ba5-400e-8521-2836e648e4c8', 'Samsung Galaxy A54', '555444333222111', 'Tela com manchas', 'Possível infiltração de líquido', 'pago', 280.00, 280.00, NOW() - INTERVAL '3 days', NOW() - INTERVAL '2 days');
