@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -32,7 +32,13 @@ const menuItems = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { logout, user } = useAuth();
+  const navigate = useNavigate();
+  const { logout, profile } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <aside
@@ -83,16 +89,16 @@ export function AppSidebar() {
 
       {/* User & Logout */}
       <div className="p-3 border-t border-sidebar-border">
-        {!collapsed && user && (
+        {!collapsed && profile && (
           <div className="px-3 py-2 mb-2">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">{user.email}</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.name}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{profile.email}</p>
           </div>
         )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={logout}
+          onClick={handleLogout}
           className={cn(
             'w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
             collapsed && 'justify-center px-0'
