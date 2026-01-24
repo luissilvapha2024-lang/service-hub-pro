@@ -19,10 +19,22 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
+interface Cliente {
+  id: string;
+  nome: string;
+  telefone: string;
+  email: string;
+  cpf: string;
+  endereco: string;
+  totalOS: number;
+  ultimaVisita: string;
+}
+
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [clientes, setClientes] = useState(mockClientes);
+  const [clientes, setClientes] = useState<Cliente[]>(mockClientes);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -40,21 +52,62 @@ export default function Clientes() {
       cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const resetForm = () => {
+    setFormData({ nome: '', telefone: '', email: '', cpf: '', endereco: '' });
+    setEditingCliente(null);
+  };
+
+  const handleOpenDialog = (cliente?: Cliente) => {
+    if (cliente) {
+      setEditingCliente(cliente);
+      setFormData({
+        nome: cliente.nome,
+        telefone: cliente.telefone,
+        email: cliente.email,
+        cpf: cliente.cpf,
+        endereco: cliente.endereco,
+      });
+    } else {
+      resetForm();
+    }
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    resetForm();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newCliente = {
-      ...formData,
-      id: String(clientes.length + 1),
-      totalOS: 0,
-      ultimaVisita: new Date().toISOString().split('T')[0],
-    };
-    setClientes([...clientes, newCliente]);
-    setFormData({ nome: '', telefone: '', email: '', cpf: '', endereco: '' });
-    setIsDialogOpen(false);
-    toast({
-      title: 'Cliente cadastrado',
-      description: `${formData.nome} foi adicionado com sucesso.`,
-    });
+    
+    if (editingCliente) {
+      // Update existing client
+      setClientes(clientes.map((c) => 
+        c.id === editingCliente.id 
+          ? { ...c, ...formData }
+          : c
+      ));
+      toast({
+        title: 'Cliente atualizado',
+        description: `${formData.nome} foi atualizado com sucesso.`,
+      });
+    } else {
+      // Create new client
+      const newCliente: Cliente = {
+        ...formData,
+        id: String(clientes.length + 1),
+        totalOS: 0,
+        ultimaVisita: new Date().toISOString().split('T')[0],
+      };
+      setClientes([...clientes, newCliente]);
+      toast({
+        title: 'Cliente cadastrado',
+        description: `${formData.nome} foi adicionado com sucesso.`,
+      });
+    }
+    
+    handleCloseDialog();
   };
 
   const handleDelete = (id: string) => {
@@ -72,16 +125,14 @@ export default function Clientes() {
           <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">Gerencie sua base de clientes</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Novo Cliente
-            </Button>
-          </DialogTrigger>
+        <Button className="gap-2" onClick={() => handleOpenDialog()}>
+          <Plus className="w-4 h-4" />
+          Novo Cliente
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Cadastrar Cliente</DialogTitle>
+              <DialogTitle>{editingCliente ? 'Editar Cliente' : 'Cadastrar Cliente'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -131,10 +182,10 @@ export default function Clientes() {
                 />
               </div>
               <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit">{editingCliente ? 'Atualizar' : 'Salvar'}</Button>
               </div>
             </form>
           </DialogContent>
@@ -174,7 +225,7 @@ export default function Clientes() {
                   <DropdownMenuItem className="gap-2">
                     <Eye className="w-4 h-4" /> Ver detalhes
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem className="gap-2" onClick={() => handleOpenDialog(cliente)}>
                     <Edit className="w-4 h-4" /> Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
