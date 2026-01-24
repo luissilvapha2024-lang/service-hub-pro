@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Eye, Edit, MoreHorizontal, Filter, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,10 +32,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function OrdensServico() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedOS, setSelectedOS] = useState<ServiceOrder | null>(null);
 
   const { orders, isLoading, createOrder, updateOrderStatus } = useServiceOrders();
   const { clients } = useClients();
@@ -293,7 +294,8 @@ export default function OrdensServico() {
           {filteredOrdens.map((os) => (
             <div
               key={os.id}
-              className="bg-card rounded-xl border p-5 shadow-soft hover:shadow-md transition-shadow"
+              className="bg-card rounded-xl border p-5 shadow-soft hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => navigate(`/ordens/${os.id}`)}
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
@@ -321,7 +323,7 @@ export default function OrdensServico() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     {os.client?.phone && (
                       <WhatsAppButton
                         phone={os.client.phone}
@@ -343,11 +345,8 @@ export default function OrdensServico() {
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem
                           className="gap-2"
-                          onClick={() => setSelectedOS(os)}
+                          onClick={() => navigate(`/ordens/${os.id}`)}
                         >
-                          <Eye className="w-4 h-4" /> Ver detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2">
                           <Edit className="w-4 h-4" /> Editar
                         </DropdownMenuItem>
                         <div className="px-2 py-1.5">
@@ -373,84 +372,6 @@ export default function OrdensServico() {
           ))}
         </div>
       )}
-
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedOS} onOpenChange={() => setSelectedOS(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes da OS-{selectedOS ? String(selectedOS.order_number).padStart(3, '0') : ''}</DialogTitle>
-          </DialogHeader>
-          {selectedOS && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Cliente</Label>
-                  <p className="font-medium">{selectedOS.client?.name || 'Não informado'}</p>
-                  <p className="text-sm text-muted-foreground">{selectedOS.client?.phone}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Aparelho</Label>
-                  <p className="font-medium">{selectedOS.device_model}</p>
-                  {selectedOS.device_imei && (
-                    <p className="text-sm text-muted-foreground">IMEI: {selectedOS.device_imei}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Defeito Relatado</Label>
-                <p>{selectedOS.reported_issue}</p>
-              </div>
-
-              {selectedOS.observations && (
-                <div>
-                  <Label className="text-muted-foreground">Observações</Label>
-                  <p>{selectedOS.observations}</p>
-                </div>
-              )}
-
-              {selectedOS.order_services && selectedOS.order_services.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Serviços</Label>
-                  <ul className="mt-1 space-y-1">
-                    {selectedOS.order_services.map((s) => (
-                      <li key={s.id} className="flex justify-between text-sm">
-                        <span>{s.service_name}</span>
-                        <span>{formatCurrency(Number(s.price))}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                <div>
-                  <Label className="text-muted-foreground">Valor Estimado</Label>
-                  <p className="font-bold text-lg">{formatCurrency(selectedOS.estimated_value)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Valor Final</Label>
-                  <p className="font-bold text-lg text-primary">{formatCurrency(selectedOS.final_value)}</p>
-                </div>
-              </div>
-
-              {selectedOS.client?.phone && (
-                <div className="pt-4 border-t">
-                  <WhatsAppButton
-                    phone={selectedOS.client.phone}
-                    message={getWhatsAppMessage(selectedOS)}
-                    variant="success"
-                    className="w-full"
-                  >
-                    <Send className="w-4 h-4 ml-1" />
-                    Enviar status via WhatsApp
-                  </WhatsAppButton>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
