@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Building, Users, Shield, Plus, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { Building, Users, Shield, Plus, Edit, Trash2, MoreHorizontal, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { mockEmpresa, mockUsuarios } from '@/data/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ImportMockData } from '@/components/ImportMockData';
 import {
   Dialog,
   DialogContent,
@@ -120,6 +121,10 @@ export default function Configuracoes() {
           <TabsTrigger value="permissoes" className="gap-2">
             <Shield className="w-4 h-4" />
             Permissões
+          </TabsTrigger>
+          <TabsTrigger value="dados" className="gap-2">
+            <Database className="w-4 h-4" />
+            Dados
           </TabsTrigger>
         </TabsList>
 
@@ -424,6 +429,11 @@ export default function Configuracoes() {
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Dados Tab */}
+        <TabsContent value="dados">
+          <ImportMockData />
         </TabsContent>
       </Tabs>
     </div>
