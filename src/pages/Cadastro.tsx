@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Smartphone, Mail, Lock, Eye, EyeOff, User, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,37 @@ export default function Cadastro() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast({
+        title: 'Erro',
+        description: 'A senha deve ter pelo menos 6 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -35,23 +60,23 @@ export default function Cadastro() {
     
     setLoading(true);
     
-    const success = await register({
+    const result = await register({
       name: formData.name,
       email: formData.email,
       password: formData.password,
       companyName: formData.companyName,
     });
     
-    if (success) {
+    if (result.success) {
       toast({
         title: 'Conta criada!',
-        description: 'Bem-vindo ao TechFix.',
+        description: 'Verifique seu email para confirmar o cadastro.',
       });
-      navigate('/dashboard');
+      navigate('/login');
     } else {
       toast({
         title: 'Erro',
-        description: 'Não foi possível criar a conta.',
+        description: result.error || 'Não foi possível criar a conta.',
         variant: 'destructive',
       });
     }
@@ -62,6 +87,14 @@ export default function Cadastro() {
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -139,7 +172,6 @@ export default function Cadastro() {
                   value={formData.companyName}
                   onChange={(e) => handleChange('companyName', e.target.value)}
                   className="pl-10"
-                  required
                 />
               </div>
             </div>
@@ -172,6 +204,7 @@ export default function Cadastro() {
                   onChange={(e) => handleChange('password', e.target.value)}
                   className="pl-10 pr-10"
                   required
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -181,6 +214,7 @@ export default function Cadastro() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
             </div>
 
             <div className="space-y-2">
