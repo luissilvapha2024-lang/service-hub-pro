@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
 import { useServices } from '@/hooks/useServices';
 import { useSales } from '@/hooks/useSales';
+import { useClients } from '@/hooks/useClients';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -31,10 +37,20 @@ export default function PDV() {
   const [secondPaymentMethod, setSecondPaymentMethod] = useState<string>('');
   const [firstPaymentAmount, setFirstPaymentAmount] = useState<number>(0);
   const [discount, setDiscount] = useState(0);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientSearch, setClientSearch] = useState('');
+  const [isClientPopoverOpen, setIsClientPopoverOpen] = useState(false);
 
   const { products, isLoading: productsLoading } = useProducts();
   const { services, isLoading: servicesLoading } = useServices();
   const { createSale } = useSales();
+  const { clients } = useClients();
+
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const filteredClients = clients.filter(c => 
+    c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    c.phone.includes(clientSearch)
+  );
 
   const filteredProdutos = products.filter((p) =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -104,6 +120,7 @@ export default function PDV() {
         discount: discountAmount,
         total,
         payment_method: paymentMethodLabel,
+        client_id: selectedClientId,
       },
       items: cart.map((item) => ({
         product_id: item.type === 'product' ? item.id : null,
@@ -122,6 +139,8 @@ export default function PDV() {
     setSecondPaymentMethod('');
     setSplitPayment(false);
     setFirstPaymentAmount(0);
+    setSelectedClientId(null);
+    setClientSearch('');
     setIsCheckoutOpen(false);
   };
 
@@ -229,13 +248,77 @@ export default function PDV() {
       {/* Cart */}
       <div className="w-96 bg-card border rounded-xl flex flex-col shadow-soft">
         <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-3">
             <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-semibold text-foreground">Carrinho</h2>
             <span className="ml-auto text-sm text-muted-foreground">
               {cart.length} {cart.length === 1 ? 'item' : 'itens'}
             </span>
           </div>
+          
+          {/* Client Selection */}
+          <Popover open={isClientPopoverOpen} onOpenChange={setIsClientPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+              >
+                <User className="w-4 h-4 mr-2" />
+                {selectedClient ? (
+                  <span className="truncate">{selectedClient.name}</span>
+                ) : (
+                  <span className="text-muted-foreground">Cliente (opcional)</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start">
+              <div className="p-2 border-b">
+                <Input
+                  placeholder="Buscar cliente..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+              <div className="max-h-60 overflow-auto">
+                {filteredClients.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground text-center">
+                    Nenhum cliente encontrado
+                  </p>
+                ) : (
+                  filteredClients.map((client) => (
+                    <button
+                      key={client.id}
+                      onClick={() => {
+                        setSelectedClientId(client.id);
+                        setClientSearch('');
+                        setIsClientPopoverOpen(false);
+                      }}
+                      className={cn(
+                        'w-full px-4 py-2 text-left hover:bg-muted transition-colors',
+                        selectedClientId === client.id && 'bg-primary/10'
+                      )}
+                    >
+                      <p className="font-medium text-sm">{client.name}</p>
+                      <p className="text-xs text-muted-foreground">{client.phone}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          
+          {selectedClient && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-muted-foreground"
+              onClick={() => setSelectedClientId(null)}
+            >
+              <X className="w-3 h-3 mr-1" />
+              Remover cliente
+            </Button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3">
