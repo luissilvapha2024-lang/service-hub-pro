@@ -27,6 +27,9 @@ export default function PDV() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [splitPayment, setSplitPayment] = useState(false);
+  const [secondPaymentMethod, setSecondPaymentMethod] = useState<string>('');
+  const [firstPaymentAmount, setFirstPaymentAmount] = useState<number>(0);
   const [discount, setDiscount] = useState(0);
 
   const { products, isLoading: productsLoading } = useProducts();
@@ -89,13 +92,18 @@ export default function PDV() {
 
   const handleCheckout = () => {
     if (!paymentMethod) return;
+    if (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) return;
+
+    const paymentMethodLabel = splitPayment 
+      ? `${paymentMethod} (${formatCurrency(firstPaymentAmount)}) + ${secondPaymentMethod} (${formatCurrency(total - firstPaymentAmount)})`
+      : paymentMethod;
 
     createSale.mutate({
       sale: {
         subtotal,
         discount: discountAmount,
         total,
-        payment_method: paymentMethod,
+        payment_method: paymentMethodLabel,
       },
       items: cart.map((item) => ({
         product_id: item.type === 'product' ? item.id : null,
@@ -111,6 +119,9 @@ export default function PDV() {
     setCart([]);
     setDiscount(0);
     setPaymentMethod('');
+    setSecondPaymentMethod('');
+    setSplitPayment(false);
+    setFirstPaymentAmount(0);
     setIsCheckoutOpen(false);
   };
 
@@ -330,7 +341,7 @@ export default function PDV() {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Forma de Pagamento
+                Forma de Pagamento {splitPayment && '(1ª)'}
               </label>
               <div className="grid grid-cols-2 gap-3 mt-2">
                 {paymentMethods.map((method) => (
@@ -351,6 +362,72 @@ export default function PDV() {
               </div>
             </div>
 
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="splitPayment"
+                checked={splitPayment}
+                onChange={(e) => {
+                  setSplitPayment(e.target.checked);
+                  if (e.target.checked) {
+                    setFirstPaymentAmount(Math.floor(total / 2 * 100) / 100);
+                  } else {
+                    setSecondPaymentMethod('');
+                    setFirstPaymentAmount(0);
+                  }
+                }}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="splitPayment" className="text-sm font-medium text-muted-foreground">
+                Dividir em duas formas de pagamento
+              </label>
+            </div>
+
+            {splitPayment && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Valor da 1ª forma ({paymentMethod || 'Selecione acima'})
+                  </label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    max={total - 0.01}
+                    step="0.01"
+                    value={firstPaymentAmount}
+                    onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Restante na 2ª forma: {formatCurrency(total - firstPaymentAmount)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    2ª Forma de Pagamento
+                  </label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={`second-${method.id}`}
+                        onClick={() => setSecondPaymentMethod(method.label)}
+                        className={cn(
+                          'flex items-center gap-2 p-4 rounded-lg border transition-all',
+                          secondPaymentMethod === method.label
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border hover:border-muted-foreground'
+                        )}
+                      >
+                        <method.icon className="w-5 h-5" />
+                        <span className="font-medium">{method.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="pt-4 border-t">
               <div className="flex justify-between text-lg font-bold mb-4">
                 <span>Total a pagar</span>
@@ -360,7 +437,7 @@ export default function PDV() {
                 className="w-full" 
                 size="lg" 
                 onClick={handleCheckout}
-                disabled={!paymentMethod || createSale.isPending}
+                disabled={!paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
               >
                 {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Confirmar Pagamento
