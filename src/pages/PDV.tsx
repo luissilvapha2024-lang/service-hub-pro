@@ -7,12 +7,6 @@ import { useServices } from '@/hooks/useServices';
 import { useSales } from '@/hooks/useSales';
 import { useClients } from '@/hooks/useClients';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -31,7 +25,6 @@ interface CartItem {
 export default function PDV() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [splitPayment, setSplitPayment] = useState(false);
   const [secondPaymentMethod, setSecondPaymentMethod] = useState<string>('');
@@ -141,7 +134,6 @@ export default function PDV() {
     setFirstPaymentAmount(0);
     setSelectedClientId(null);
     setClientSearch('');
-    setIsCheckoutOpen(false);
   };
 
   const paymentMethods = [
@@ -371,45 +363,11 @@ export default function PDV() {
           )}
         </div>
 
-        <div className="p-4 border-t space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="text-foreground">{formatCurrency(subtotal)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-sm text-success">
-                <span>Desconto ({discount}%)</span>
-                <span>-{formatCurrency(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total</span>
-              <span className="text-primary">{formatCurrency(total)}</span>
-            </div>
-          </div>
-
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={cart.length === 0}
-            onClick={() => setIsCheckoutOpen(true)}
-          >
-            <Receipt className="w-4 h-4 mr-2" />
-            Finalizar Venda
-          </Button>
-        </div>
-      </div>
-
-      {/* Checkout Dialog */}
-      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Finalizar Venda</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
+        {cart.length > 0 && (
+          <div className="p-4 border-t space-y-3">
+            {/* Discount */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
                 Desconto (%)
               </label>
               <Input
@@ -418,33 +376,53 @@ export default function PDV() {
                 max="100"
                 value={discount}
                 onChange={(e) => setDiscount(Number(e.target.value))}
-                className="mt-1"
+                className="h-8 w-20"
               />
             </div>
 
+            {/* Totals */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-foreground">{formatCurrency(subtotal)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Desconto ({discount}%)</span>
+                  <span>-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span className="text-primary">{formatCurrency(total)}</span>
+              </div>
+            </div>
+
+            {/* Payment Methods */}
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Forma de Pagamento {splitPayment && '(1ª)'}
+                Pagamento {splitPayment && '(1ª)'}
               </label>
-              <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="grid grid-cols-4 gap-2 mt-1">
                 {paymentMethods.map((method) => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.label)}
                     className={cn(
-                      'flex items-center gap-2 p-4 rounded-lg border transition-all',
+                      'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs',
                       paymentMethod === method.label
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border hover:border-muted-foreground'
                     )}
                   >
-                    <method.icon className="w-5 h-5" />
+                    <method.icon className="w-4 h-4" />
                     <span className="font-medium">{method.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Split Payment Toggle */}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -461,16 +439,17 @@ export default function PDV() {
                 }}
                 className="h-4 w-4 rounded border-border"
               />
-              <label htmlFor="splitPayment" className="text-sm font-medium text-muted-foreground">
-                Dividir em duas formas de pagamento
+              <label htmlFor="splitPayment" className="text-xs text-muted-foreground">
+                Dividir pagamento
               </label>
             </div>
 
+            {/* Split Payment Details */}
             {splitPayment && (
-              <>
+              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Valor da 1ª forma ({paymentMethod || 'Selecione acima'})
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Valor 1ª forma ({paymentMethod || '...'})
                   </label>
                   <Input
                     type="number"
@@ -479,56 +458,61 @@ export default function PDV() {
                     step="0.01"
                     value={firstPaymentAmount}
                     onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
-                    className="mt-1"
+                    className="h-8 mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Restante na 2ª forma: {formatCurrency(total - firstPaymentAmount)}
+                    Restante: {formatCurrency(total - firstPaymentAmount)}
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
-                    2ª Forma de Pagamento
+                  <label className="text-xs font-medium text-muted-foreground">
+                    2ª Forma
                   </label>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="grid grid-cols-4 gap-2 mt-1">
                     {paymentMethods.map((method) => (
                       <button
                         key={`second-${method.id}`}
                         onClick={() => setSecondPaymentMethod(method.label)}
                         className={cn(
-                          'flex items-center gap-2 p-4 rounded-lg border transition-all',
+                          'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs',
                           secondPaymentMethod === method.label
                             ? 'border-primary bg-primary/10 text-primary'
                             : 'border-border hover:border-muted-foreground'
                         )}
                       >
-                        <method.icon className="w-5 h-5" />
+                        <method.icon className="w-4 h-4" />
                         <span className="font-medium">{method.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
-            <div className="pt-4 border-t">
-              <div className="flex justify-between text-lg font-bold mb-4">
-                <span>Total a pagar</span>
-                <span className="text-primary">{formatCurrency(total)}</span>
-              </div>
-              <Button 
-                className="w-full" 
-                size="lg" 
-                onClick={handleCheckout}
-                disabled={!paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
-              >
-                {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Confirmar Pagamento
-              </Button>
-            </div>
+            {/* Checkout Button */}
+            <Button 
+              className="w-full" 
+              size="lg" 
+              onClick={handleCheckout}
+              disabled={!paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
+            >
+              {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Receipt className="w-4 h-4 mr-2" />
+              Finalizar Venda
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+
+        {cart.length === 0 && (
+          <div className="p-4 border-t">
+            <Button className="w-full" size="lg" disabled>
+              <Receipt className="w-4 h-4 mr-2" />
+              Finalizar Venda
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
