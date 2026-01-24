@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
-import { StatusOS, statusConfig } from '@/data/mockData';
+import { statusConfig, type OrderStatus } from '@/hooks/useServiceOrders';
 
 interface StatusBadgeProps {
-  status: StatusOS;
+  status: OrderStatus;
   size?: 'sm' | 'md';
 }
 

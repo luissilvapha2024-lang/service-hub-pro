@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockProdutos, mockServicos } from '@/data/mockData';
+import { useProducts } from '@/hooks/useProducts';
+import { useServices } from '@/hooks/useServices';
+import { useSales } from '@/hooks/useSales';
 import {
   Dialog,
   DialogContent,
@@ -10,15 +12,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface CartItem {
   id: string;
-  nome: string;
-  preco: number;
-  quantidade: number;
-  tipo: 'produto' | 'servico';
+  name: string;
+  price: number;
+  quantity: number;
+  type: 'product' | 'service';
 }
 
 export default function PDV() {
@@ -27,53 +28,55 @@ export default function PDV() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [discount, setDiscount] = useState(0);
-  const { toast } = useToast();
 
-  const filteredProdutos = mockProdutos.filter((p) =>
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  const { products, isLoading: productsLoading } = useProducts();
+  const { services, isLoading: servicesLoading } = useServices();
+  const { createSale } = useSales();
+
+  const filteredProdutos = products.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredServicos = mockServicos.filter(
-    (s) => s.ativo && s.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredServicos = services.filter(
+    (s) => s.is_active && s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const addToCart = (item: { id: string; nome: string; preco?: number; valor?: number }, tipo: 'produto' | 'servico') => {
-    const preco = item.preco || item.valor || 0;
-    const existingItem = cart.find((c) => c.id === item.id && c.tipo === tipo);
+  const addToCart = (item: { id: string; name: string; price: number }, type: 'product' | 'service') => {
+    const existingItem = cart.find((c) => c.id === item.id && c.type === type);
 
     if (existingItem) {
       setCart(
         cart.map((c) =>
-          c.id === item.id && c.tipo === tipo
-            ? { ...c, quantidade: c.quantidade + 1 }
+          c.id === item.id && c.type === type
+            ? { ...c, quantity: c.quantity + 1 }
             : c
         )
       );
     } else {
       setCart([
         ...cart,
-        { id: item.id, nome: item.nome, preco, quantidade: 1, tipo },
+        { id: item.id, name: item.name, price: item.price, quantity: 1, type },
       ]);
     }
   };
 
-  const updateQuantity = (id: string, tipo: 'produto' | 'servico', delta: number) => {
+  const updateQuantity = (id: string, type: 'product' | 'service', delta: number) => {
     setCart(
       cart
         .map((c) =>
-          c.id === id && c.tipo === tipo
-            ? { ...c, quantidade: Math.max(0, c.quantidade + delta) }
+          c.id === id && c.type === type
+            ? { ...c, quantity: Math.max(0, c.quantity + delta) }
             : c
         )
-        .filter((c) => c.quantidade > 0)
+        .filter((c) => c.quantity > 0)
     );
   };
 
-  const removeFromCart = (id: string, tipo: 'produto' | 'servico') => {
-    setCart(cart.filter((c) => !(c.id === id && c.tipo === tipo)));
+  const removeFromCart = (id: string, type: 'product' | 'service') => {
+    setCart(cart.filter((c) => !(c.id === id && c.type === type)));
   };
 
-  const subtotal = cart.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const discountAmount = subtotal * (discount / 100);
   const total = subtotal - discountAmount;
 
@@ -85,18 +88,26 @@ export default function PDV() {
   };
 
   const handleCheckout = () => {
-    if (!paymentMethod) {
-      toast({
-        title: 'Selecione uma forma de pagamento',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!paymentMethod) return;
 
-    toast({
-      title: 'Venda finalizada!',
-      description: `Total: ${formatCurrency(total)} - ${paymentMethod}`,
+    createSale.mutate({
+      sale: {
+        subtotal,
+        discount: discountAmount,
+        total,
+        payment_method: paymentMethod,
+      },
+      items: cart.map((item) => ({
+        product_id: item.type === 'product' ? item.id : null,
+        service_id: item.type === 'service' ? item.id : null,
+        item_type: item.type,
+        item_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+      })),
     });
+
     setCart([]);
     setDiscount(0);
     setPaymentMethod('');
@@ -109,6 +120,16 @@ export default function PDV() {
     { id: 'credito', label: 'Crédito', icon: CreditCard },
     { id: 'debito', label: 'Débito', icon: CreditCard },
   ];
+
+  const isLoading = productsLoading || servicesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-6 h-[calc(100vh-7rem)] animate-fade-in">
@@ -136,51 +157,60 @@ export default function PDV() {
           </TabsList>
 
           <TabsContent value="produtos" className="flex-1 overflow-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {filteredProdutos.map((produto) => (
-                <button
-                  key={produto.id}
-                  onClick={() => addToCart(produto, 'produto')}
-                  className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
-                >
-                  <h4 className="font-medium text-foreground text-sm line-clamp-2">
-                    {produto.nome}
-                  </h4>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-primary font-bold">
-                      {formatCurrency(produto.preco)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Est: {produto.estoque}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            {filteredProdutos.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Nenhum produto cadastrado.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {filteredProdutos.map((produto) => (
+                  <button
+                    key={produto.id}
+                    onClick={() => addToCart({ id: produto.id, name: produto.name, price: Number(produto.price) }, 'product')}
+                    className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
+                  >
+                    <h4 className="font-medium text-foreground text-sm line-clamp-2">
+                      {produto.name}
+                    </h4>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-primary font-bold">
+                        {formatCurrency(Number(produto.price))}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Est: {produto.stock}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="servicos" className="flex-1 overflow-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {filteredServicos.map((servico) => (
-                <button
-                  key={servico.id}
-                  onClick={() => addToCart({ ...servico, preco: servico.valor }, 'servico')}
-                  className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
-                >
-                  <h4 className="font-medium text-foreground text-sm line-clamp-2">
-                    {servico.nome}
-                  </h4>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-primary font-bold">
-                      {formatCurrency(servico.valor)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {servico.tempoMedio}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            {filteredServicos.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Nenhum serviço cadastrado.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {filteredServicos.map((servico) => (
+                  <button
+                    key={servico.id}
+                    onClick={() => addToCart({ id: servico.id, name: servico.name, price: Number(servico.price) }, 'service')}
+                    className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
+                  >
+                    <h4 className="font-medium text-foreground text-sm line-clamp-2">
+                      {servico.name}
+                    </h4>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-primary font-bold">
+                        {formatCurrency(Number(servico.price))}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -206,13 +236,13 @@ export default function PDV() {
           ) : (
             cart.map((item) => (
               <div
-                key={`${item.tipo}-${item.id}`}
+                key={`${item.type}-${item.id}`}
                 className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
               >
                 <div className="flex-1">
-                  <p className="font-medium text-sm text-foreground">{item.nome}</p>
+                  <p className="font-medium text-sm text-foreground">{item.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {formatCurrency(item.preco)} un
+                    {formatCurrency(item.price)} un
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -220,16 +250,16 @@ export default function PDV() {
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.tipo, -1)}
+                    onClick={() => updateQuantity(item.id, item.type, -1)}
                   >
                     <Minus className="w-3 h-3" />
                   </Button>
-                  <span className="w-6 text-center font-medium">{item.quantidade}</span>
+                  <span className="w-6 text-center font-medium">{item.quantity}</span>
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.tipo, 1)}
+                    onClick={() => updateQuantity(item.id, item.type, 1)}
                   >
                     <Plus className="w-3 h-3" />
                   </Button>
@@ -237,7 +267,7 @@ export default function PDV() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive"
-                    onClick={() => removeFromCart(item.id, item.tipo)}
+                    onClick={() => removeFromCart(item.id, item.type)}
                   >
                     <Trash2 className="w-3 h-3" />
                   </Button>
@@ -326,7 +356,13 @@ export default function PDV() {
                 <span>Total a pagar</span>
                 <span className="text-primary">{formatCurrency(total)}</span>
               </div>
-              <Button className="w-full" size="lg" onClick={handleCheckout}>
+              <Button 
+                className="w-full" 
+                size="lg" 
+                onClick={handleCheckout}
+                disabled={!paymentMethod || createSale.isPending}
+              >
+                {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Confirmar Pagamento
               </Button>
             </div>
