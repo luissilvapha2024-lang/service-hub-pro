@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search, Loader2 } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -71,6 +71,7 @@ export default function Relatorios() {
     monthlyData,
     osStatusData,
     topServices,
+    topProducts,
     topClients,
     summaryMetrics,
   } = useReports({
@@ -158,6 +159,11 @@ export default function Relatorios() {
       title: 'Serviços Mais Vendidos',
       headers: ['Serviço', 'Quantidade'],
       data: topServices.map(item => [item.nome, item.quantidade]),
+    },
+    produtos: {
+      title: 'Produtos Mais Vendidos',
+      headers: ['Produto', 'Quantidade', 'Receita (R$)'],
+      data: topProducts.map(item => [item.nome, item.quantidade, formatCurrencyForExport(item.receita)]),
     },
     clientes: {
       title: 'Clientes Mais Frequentes',
@@ -532,6 +538,52 @@ export default function Relatorios() {
                     }}
                   />
                   <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Produtos mais vendidos */}
+        <div className="bg-card rounded-xl border p-6 shadow-soft">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Produtos Mais Vendidos
+            </h3>
+            <ExportButton type="produtos" />
+          </div>
+          {isLoading ? (
+            <ChartSkeleton />
+          ) : topProducts.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Nenhum produto vendido no período
+            </div>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProducts} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'receita') return formatCurrency(value);
+                      return value;
+                    }}
+                  />
+                  <Bar dataKey="quantidade" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} name="Quantidade" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

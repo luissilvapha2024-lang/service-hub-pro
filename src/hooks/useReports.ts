@@ -171,6 +171,29 @@ export function useReports({
       .slice(0, 5);
   }, [filteredOrders, filteredSales]);
 
+  // Calculate most sold products
+  const topProducts = useMemo(() => {
+    const productCounts: Record<string, { quantidade: number; receita: number }> = {};
+
+    // Count from sale_items (products only)
+    filteredSales.forEach(sale => {
+      sale.sale_items?.forEach(item => {
+        if (item.item_type === 'product') {
+          if (!productCounts[item.item_name]) {
+            productCounts[item.item_name] = { quantidade: 0, receita: 0 };
+          }
+          productCounts[item.item_name].quantidade += item.quantity;
+          productCounts[item.item_name].receita += item.total_price;
+        }
+      });
+    });
+
+    return Object.entries(productCounts)
+      .map(([nome, data]) => ({ nome, quantidade: data.quantidade, receita: data.receita }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 5);
+  }, [filteredSales]);
+
   // Calculate top clients
   const topClients = useMemo(() => {
     const clientData: Record<string, { 
@@ -227,6 +250,7 @@ export function useReports({
     monthlyData,
     osStatusData,
     topServices,
+    topProducts,
     topClients,
     summaryMetrics,
     filteredOrders,
