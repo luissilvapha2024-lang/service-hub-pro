@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
@@ -309,6 +309,18 @@ export default function Relatorios() {
                   />
                 </PopoverContent>
               </Popover>
+              <Button 
+                onClick={() => {
+                  toast({
+                    title: 'Período aplicado',
+                    description: `Relatórios filtrados de ${startDate ? format(startDate, 'dd/MM/yyyy') : '-'} até ${endDate ? format(endDate, 'dd/MM/yyyy') : '-'}`,
+                  });
+                }}
+                disabled={!startDate || !endDate}
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Pesquisar
+              </Button>
             </div>
           )}
         </div>
