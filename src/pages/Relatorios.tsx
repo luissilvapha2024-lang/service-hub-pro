@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
   Select,
   SelectContent,
@@ -43,7 +42,9 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
+import { useReports } from '@/hooks/useReports';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const periodLabels: Record<string, string> = {
   semana: 'Esta semana',
@@ -63,6 +64,21 @@ export default function Relatorios() {
 
   const { clients } = useClients();
   const { services } = useServices();
+
+  // Use the reports hook with filters
+  const {
+    isLoading,
+    monthlyData,
+    osStatusData,
+    topServices,
+    topClients,
+    summaryMetrics,
+  } = useReports({
+    startDate,
+    endDate,
+    selectedClientId,
+    selectedServiceId,
+  });
 
   // Get unique services (remove duplicates by name)
   const uniqueServices = useMemo(() => {
@@ -122,37 +138,12 @@ export default function Relatorios() {
     }).format(value);
   };
 
-  // Mock data for charts
-  const vendasMensal = [
-    { mes: 'Jan', vendas: 8500, servicos: 6200 },
-    { mes: 'Fev', vendas: 9200, servicos: 7100 },
-    { mes: 'Mar', vendas: 7800, servicos: 5800 },
-    { mes: 'Abr', vendas: 10500, servicos: 8200 },
-    { mes: 'Mai', vendas: 11200, servicos: 9100 },
-    { mes: 'Jun', vendas: 9800, servicos: 7600 },
-  ];
-
-  const osStatus = [
-    { name: 'Concluídas', value: 45, color: 'hsl(var(--success))' },
-    { name: 'Em Andamento', value: 20, color: 'hsl(var(--primary))' },
-    { name: 'Aguardando', value: 15, color: 'hsl(var(--warning))' },
-    { name: 'Em Análise', value: 10, color: 'hsl(var(--info))' },
-  ];
-
-  const tecnicosProdutividade = [
-    { nome: 'Carlos', servicos: 45, valor: 12500 },
-    { nome: 'Maria', servicos: 38, valor: 10200 },
-    { nome: 'João', servicos: 22, valor: 6800 },
-  ];
-
-  const clientesFrequentes = mockClientes.sort((a, b) => b.totalOS - a.totalOS).slice(0, 5);
-
-  // Export data definitions
+  // Export data definitions using real data
   const exportData = {
     vendas: {
       title: 'Relatório de Vendas',
       headers: ['Mês', 'Vendas (R$)', 'Serviços (R$)'],
-      data: vendasMensal.map(item => [
+      data: monthlyData.map(item => [
         item.mes,
         formatCurrencyForExport(item.vendas),
         formatCurrencyForExport(item.servicos),
@@ -161,39 +152,30 @@ export default function Relatorios() {
     ordens: {
       title: 'Status das Ordens de Serviço',
       headers: ['Status', 'Quantidade'],
-      data: osStatus.map(item => [item.name, item.value]),
+      data: osStatusData.map(item => [item.name, item.value]),
     },
     servicos: {
       title: 'Serviços Mais Vendidos',
       headers: ['Serviço', 'Quantidade'],
-      data: mockDashboardData.servicosMaisRealizados.map(item => [item.nome, item.quantidade]),
-    },
-    tecnicos: {
-      title: 'Produtividade por Técnico',
-      headers: ['Técnico', 'Serviços Realizados', 'Valor Total (R$)'],
-      data: tecnicosProdutividade.map(item => [
-        item.nome,
-        item.servicos,
-        formatCurrencyForExport(item.valor),
-      ]),
+      data: topServices.map(item => [item.nome, item.quantidade]),
     },
     clientes: {
       title: 'Clientes Mais Frequentes',
       headers: ['Cliente', 'Telefone', 'Total de OS', 'Última Visita'],
-      data: clientesFrequentes.map(item => [
-        item.nome,
-        item.telefone,
-        item.totalOS,
-        new Date(item.ultimaVisita).toLocaleDateString('pt-BR'),
+      data: topClients.map(item => [
+        item.name,
+        item.phone,
+        item.osCount,
+        new Date(item.lastVisit).toLocaleDateString('pt-BR'),
       ]),
     },
   };
 
-  const handleExport = (type: keyof typeof exportData, format: 'csv' | 'pdf') => {
+  const handleExport = (type: keyof typeof exportData, formatType: 'csv' | 'pdf') => {
     const data = exportData[type];
     const filename = `relatorio-${type}-${period}`;
 
-    if (format === 'csv') {
+    if (formatType === 'csv') {
       exportToCSV({
         filename,
         headers: data.headers,
@@ -211,7 +193,7 @@ export default function Relatorios() {
 
     toast({
       title: 'Exportado!',
-      description: `${data.title} baixado em ${format.toUpperCase()}.`,
+      description: `${data.title} baixado em ${formatType.toUpperCase()}.`,
     });
   };
 
@@ -223,7 +205,7 @@ export default function Relatorios() {
           Exportar
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="bg-background border z-50">
         <DropdownMenuItem onClick={() => handleExport(type, 'csv')}>
           <FileSpreadsheet className="w-4 h-4 mr-2" />
           CSV (Excel)
@@ -235,6 +217,17 @@ export default function Relatorios() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+
+  // Loading skeleton for charts
+  const ChartSkeleton = () => (
+    <div className="h-64 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Carregando dados...</span>
+      </div>
+    </div>
+  );
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -405,39 +398,43 @@ export default function Relatorios() {
             </h3>
             <ExportButton type="vendas" />
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={vendasMensal}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                  formatter={(value: number) => formatCurrency(value)}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="vendas"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))' }}
-                  name="Vendas"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="servicos"
-                  stroke="hsl(var(--success))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--success))' }}
-                  name="Serviços"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {isLoading ? (
+            <ChartSkeleton />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="vendas"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))' }}
+                    name="Vendas"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="servicos"
+                    stroke="hsl(var(--success))"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--success))' }}
+                    name="Serviços"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Status das OS */}
@@ -449,46 +446,54 @@ export default function Relatorios() {
             </h3>
             <ExportButton type="ordens" />
           </div>
-          <div className="h-64 flex items-center">
-            <ResponsiveContainer width="60%" height="100%">
-              <RechartsPieChart>
-                <Pie
-                  data={osStatus}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {osStatus.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-              </RechartsPieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 space-y-2">
-              {osStatus.map((item) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-sm text-foreground">{item.name}</span>
-                  </div>
-                  <span className="font-medium">{item.value}</span>
-                </div>
-              ))}
+          {isLoading ? (
+            <ChartSkeleton />
+          ) : osStatusData.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Nenhuma ordem de serviço encontrada no período
             </div>
-          </div>
+          ) : (
+            <div className="h-64 flex items-center">
+              <ResponsiveContainer width="60%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={osStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {osStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-2">
+                {osStatusData.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm text-foreground">{item.name}</span>
+                    </div>
+                    <span className="font-medium">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Serviços mais vendidos */}
@@ -500,64 +505,81 @@ export default function Relatorios() {
             </h3>
             <ExportButton type="servicos" />
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockDashboardData.servicosMaisRealizados} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis
-                  type="category"
-                  dataKey="nome"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  width={120}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {isLoading ? (
+            <ChartSkeleton />
+          ) : topServices.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              Nenhum serviço encontrado no período
+            </div>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topServices} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        {/* Produtividade por Técnico */}
+        {/* Summary Card */}
         <div className="bg-card rounded-xl border p-6 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Produtividade por Técnico
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Resumo do Período
             </h3>
-            <ExportButton type="tecnicos" />
           </div>
-          <div className="space-y-4">
-            {tecnicosProdutividade.map((tecnico, index) => (
-              <div key={tecnico.nome} className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-semibold">{index + 1}</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-foreground">{tecnico.nome}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {tecnico.servicos} serviços
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${(tecnico.servicos / 45) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <span className="font-semibold text-foreground">{formatCurrency(tecnico.valor)}</span>
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-primary/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">Faturamento Total</p>
+                <p className="text-2xl font-bold text-primary">
+                  {formatCurrency(summaryMetrics.totalRevenue)}
+                </p>
               </div>
-            ))}
-          </div>
+              <div className="p-4 bg-success/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">Vendas Realizadas</p>
+                <p className="text-2xl font-bold text-success">
+                  {summaryMetrics.salesCount}
+                </p>
+              </div>
+              <div className="p-4 bg-info/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">Ordens de Serviço</p>
+                <p className="text-2xl font-bold text-info">
+                  {summaryMetrics.ordersCount}
+                </p>
+              </div>
+              <div className="p-4 bg-warning/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">OS Concluídas</p>
+                <p className="text-2xl font-bold text-warning">
+                  {summaryMetrics.completedOrders}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -570,42 +592,54 @@ export default function Relatorios() {
           </h3>
           <ExportButton type="clientes" />
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
-                Cliente
-              </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
-                Telefone
-              </th>
-              <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
-                Total de OS
-              </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
-                Última Visita
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientesFrequentes.map((cliente) => (
-              <tr key={cliente.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                <td className="py-3 px-4">
-                  <span className="font-medium text-foreground">{cliente.nome}</span>
-                </td>
-                <td className="py-3 px-4 text-muted-foreground">{cliente.telefone}</td>
-                <td className="py-3 px-4 text-center">
-                  <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                    {cliente.totalOS}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-right text-muted-foreground">
-                  {new Date(cliente.ultimaVisita).toLocaleDateString('pt-BR')}
-                </td>
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : topClients.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            Nenhum cliente encontrado no período
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                  Cliente
+                </th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                  Telefone
+                </th>
+                <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
+                  Total de OS
+                </th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
+                  Última Visita
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {topClients.map((cliente, index) => (
+                <tr key={index} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                  <td className="py-3 px-4">
+                    <span className="font-medium text-foreground">{cliente.name}</span>
+                  </td>
+                  <td className="py-3 px-4 text-muted-foreground">{cliente.phone}</td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                      {cliente.osCount}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right text-muted-foreground">
+                    {new Date(cliente.lastVisit).toLocaleDateString('pt-BR')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
