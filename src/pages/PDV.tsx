@@ -6,6 +6,8 @@ import { useProducts } from '@/hooks/useProducts';
 import { useServices } from '@/hooks/useServices';
 import { useSales } from '@/hooks/useSales';
 import { useClients } from '@/hooks/useClients';
+import { useAuth } from '@/contexts/AuthContext';
+import { printReceipt } from '@/utils/printReceipt';
 import {
   Popover,
   PopoverContent,
@@ -38,6 +40,7 @@ export default function PDV() {
   const { services, isLoading: servicesLoading } = useServices();
   const { createSale } = useSales();
   const { clients } = useClients();
+  const { profile } = useAuth();
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const filteredClients = clients.filter(c => 
@@ -107,6 +110,13 @@ export default function PDV() {
       ? `${paymentMethod} (${formatCurrency(firstPaymentAmount)}) + ${secondPaymentMethod} (${formatCurrency(total - firstPaymentAmount)})`
       : paymentMethod;
 
+    // Store cart data for printing before clearing
+    const cartItems = [...cart];
+    const saleSubtotal = subtotal;
+    const saleDiscount = discountAmount;
+    const saleTotal = total;
+    const clientName = selectedClient?.name;
+
     createSale.mutate({
       sale: {
         subtotal,
@@ -124,6 +134,29 @@ export default function PDV() {
         unit_price: item.price,
         total_price: item.price * item.quantity,
       })),
+    }, {
+      onSuccess: (saleData) => {
+        // Print receipt automatically
+        printReceipt({
+          saleNumber: saleData.sale_number,
+          date: new Date(saleData.created_at),
+          items: cartItems.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            type: item.type,
+          })),
+          subtotal: saleSubtotal,
+          discount: saleDiscount,
+          total: saleTotal,
+          paymentMethod: paymentMethodLabel,
+          clientName,
+          companyName: profile?.company_name || undefined,
+          companyPhone: profile?.company_phone || undefined,
+          companyAddress: profile?.company_address || undefined,
+        });
+      },
     });
 
     setCart([]);
