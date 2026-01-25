@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, Wrench } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
-import { useServices } from '@/hooks/useServices';
+import { useServiceOrders } from '@/hooks/useServiceOrders';
 import { useSales } from '@/hooks/useSales';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,13 +15,15 @@ import {
 } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface CartItem {
   id: string;
   name: string;
   price: number;
   quantity: number;
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'order';
+  orderId?: string; // ID da OS quando type === 'order'
 }
 
 export default function PDV() {
@@ -37,10 +39,13 @@ export default function PDV() {
   const [isClientPopoverOpen, setIsClientPopoverOpen] = useState(false);
 
   const { products, isLoading: productsLoading } = useProducts();
-  const { services, isLoading: servicesLoading } = useServices();
+  const { orders, isLoading: ordersLoading, updateOrderStatus } = useServiceOrders();
   const { createSale } = useSales();
   const { clients } = useClients();
   const { profile } = useAuth();
+
+  // Filtrar apenas OS com status "entregue" (prontas para pagamento)
+  const deliveredOrders = orders.filter(order => order.status === 'entregue');
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const filteredClients = clients.filter(c => 
@@ -52,11 +57,25 @@ export default function PDV() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredServicos = services.filter(
-    (s) => s.is_active && s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrdens = deliveredOrders.filter((order) =>
+    order.order_number.toString().includes(searchTerm) ||
+    order.device_model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const addToCart = (item: { id: string; name: string; price: number }, type: 'product' | 'service') => {
+  const addToCart = (item: { id: string; name: string; price: number; orderId?: string }, type: 'product' | 'service' | 'order') => {
+    // OS não pode ser adicionada mais de uma vez
+    if (type === 'order') {
+      const existingOrder = cart.find((c) => c.orderId === item.orderId);
+      if (existingOrder) return;
+      
+      setCart([
+        ...cart,
+        { id: item.id, name: item.name, price: item.price, quantity: 1, type, orderId: item.orderId },
+      ]);
+      return;
+    }
+
     const existingItem = cart.find((c) => c.id === item.id && c.type === type);
 
     if (existingItem) {
@@ -75,7 +94,10 @@ export default function PDV() {
     }
   };
 
-  const updateQuantity = (id: string, type: 'product' | 'service', delta: number) => {
+  const updateQuantity = (id: string, type: 'product' | 'service' | 'order', delta: number) => {
+    // OS não pode ter quantidade alterada
+    if (type === 'order') return;
+    
     setCart(
       cart
         .map((c) =>
@@ -87,7 +109,7 @@ export default function PDV() {
     );
   };
 
-  const removeFromCart = (id: string, type: 'product' | 'service') => {
+  const removeFromCart = (id: string, type: 'product' | 'service' | 'order') => {
     setCart(cart.filter((c) => !(c.id === id && c.type === type)));
   };
 
@@ -117,6 +139,11 @@ export default function PDV() {
     const saleTotal = total;
     const clientName = selectedClient?.name;
 
+    // Collect OS IDs that need status update
+    const orderIdsToUpdate = cartItems
+      .filter(item => item.type === 'order' && item.orderId)
+      .map(item => item.orderId!);
+
     createSale.mutate({
       sale: {
         subtotal,
@@ -128,7 +155,7 @@ export default function PDV() {
       items: cart.map((item) => ({
         product_id: item.type === 'product' ? item.id : null,
         service_id: item.type === 'service' ? item.id : null,
-        item_type: item.type,
+        item_type: item.type === 'order' ? 'service' : item.type, // OS é salva como service
         item_name: item.name,
         quantity: item.quantity,
         unit_price: item.price,
@@ -136,6 +163,11 @@ export default function PDV() {
       })),
     }, {
       onSuccess: (saleData) => {
+        // Update OS status to 'pago' for each order in the cart
+        orderIdsToUpdate.forEach(orderId => {
+          updateOrderStatus.mutate({ id: orderId, status: 'pago' });
+        });
+
         // Print receipt automatically
         printReceipt({
           saleNumber: saleData.sale_number,
@@ -176,7 +208,7 @@ export default function PDV() {
     { id: 'debito', label: 'Débito', icon: CreditCard },
   ];
 
-  const isLoading = productsLoading || servicesLoading;
+  const isLoading = productsLoading || ordersLoading;
 
   if (isLoading) {
     return (
@@ -293,7 +325,7 @@ export default function PDV() {
             </div>
           </div>
 
-          {/* Tabs for Products/Services */}
+          {/* Tabs for Products/Orders */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1 flex flex-col min-h-0">
             <Tabs defaultValue="produtos" className="flex flex-col flex-1">
               <div className="bg-primary/90 px-2 pt-2">
@@ -302,9 +334,14 @@ export default function PDV() {
                     <Package className="w-3 h-3 mr-1" />
                     Produtos
                   </TabsTrigger>
-                  <TabsTrigger value="servicos" className="text-xs data-[state=active]:bg-card data-[state=active]:text-foreground text-primary-foreground/80">
-                    <Wrench className="w-3 h-3 mr-1" />
-                    Serviços
+                  <TabsTrigger value="ordens" className="text-xs data-[state=active]:bg-card data-[state=active]:text-foreground text-primary-foreground/80">
+                    <ClipboardList className="w-3 h-3 mr-1" />
+                    Ordens
+                    {deliveredOrders.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                        {deliveredOrders.length}
+                      </Badge>
+                    )}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -334,27 +371,59 @@ export default function PDV() {
                 )}
               </TabsContent>
 
-              <TabsContent value="servicos" className="flex-1 overflow-auto p-2 m-0">
-                {filteredServicos.length === 0 ? (
+              <TabsContent value="ordens" className="flex-1 overflow-auto p-2 m-0">
+                {filteredOrdens.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm">
-                    Nenhum serviço
+                    Nenhuma OS entregue disponível
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {filteredServicos.map((servico) => (
-                      <button
-                        key={servico.id}
-                        onClick={() => addToCart({ id: servico.id, name: servico.name, price: Number(servico.price) }, 'service')}
-                        className="w-full bg-accent/30 hover:bg-accent/60 rounded-md p-2 text-left transition-all flex items-center justify-between"
-                      >
-                        <span className="font-medium text-foreground text-sm truncate flex-1">
-                          {servico.name}
-                        </span>
-                        <span className="text-primary font-bold text-sm ml-2">
-                          {formatCurrency(Number(servico.price))}
-                        </span>
-                      </button>
-                    ))}
+                    {filteredOrdens.map((order) => {
+                      const orderValue = order.final_value || order.estimated_value || 0;
+                      const isInCart = cart.some(c => c.orderId === order.id);
+                      return (
+                        <button
+                          key={order.id}
+                          onClick={() => addToCart({ 
+                            id: `os-${order.order_number}`, 
+                            name: `OS #${order.order_number} - ${order.device_model}`, 
+                            price: Number(orderValue),
+                            orderId: order.id 
+                          }, 'order')}
+                          disabled={isInCart}
+                          className={cn(
+                            "w-full rounded-md p-2 text-left transition-all",
+                            isInCart 
+                              ? "bg-success/20 border border-success/50 cursor-not-allowed"
+                              : "bg-accent/30 hover:bg-accent/60"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-primary text-xs">#{order.order_number}</span>
+                                <span className="font-medium text-foreground text-sm truncate">
+                                  {order.device_model}
+                                </span>
+                              </div>
+                              {order.client && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {order.client.name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right ml-2">
+                              <span className="text-primary font-bold text-sm">
+                                {formatCurrency(Number(orderValue))}
+                              </span>
+                              {isInCart && (
+                                <p className="text-[10px] text-success font-medium">Adicionada</p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
@@ -384,49 +453,74 @@ export default function PDV() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {cart.map((item, index) => (
-                  <div
-                    key={`${item.type}-${item.id}`}
-                    className="px-4 py-2 grid grid-cols-12 gap-2 items-center hover:bg-muted/30 transition-colors"
-                  >
-                    <span className="col-span-1 text-sm text-muted-foreground">{index + 1}</span>
-                    <div className="col-span-5">
-                      <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
-                      <span className="text-xs text-muted-foreground capitalize">{item.type === 'product' ? 'Produto' : 'Serviço'}</span>
+                {cart.map((item, index) => {
+                  const getTypeLabel = () => {
+                    switch (item.type) {
+                      case 'product': return 'Produto';
+                      case 'service': return 'Serviço';
+                      case 'order': return 'Ordem de Serviço';
+                    }
+                  };
+                  const isOrder = item.type === 'order';
+                  
+                  return (
+                    <div
+                      key={`${item.type}-${item.id}`}
+                      className={cn(
+                        "px-4 py-2 grid grid-cols-12 gap-2 items-center hover:bg-muted/30 transition-colors",
+                        isOrder && "bg-success/5"
+                      )}
+                    >
+                      <span className="col-span-1 text-sm text-muted-foreground">{index + 1}</span>
+                      <div className="col-span-5">
+                        <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
+                        <span className={cn(
+                          "text-xs capitalize",
+                          isOrder ? "text-success font-medium" : "text-muted-foreground"
+                        )}>
+                          {getTypeLabel()}
+                        </span>
+                      </div>
+                      <div className="col-span-2 flex items-center justify-center gap-1">
+                        {isOrder ? (
+                          <span className="w-8 text-center font-bold text-sm">1</span>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(item.id, item.type, -1)}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => updateQuantity(item.id, item.type, 1)}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <span className="col-span-2 text-right text-sm">{formatCurrency(item.price)}</span>
+                      <div className="col-span-2 flex items-center justify-end gap-2">
+                        <span className="font-bold text-sm text-primary">{formatCurrency(item.price * item.quantity)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => removeFromCart(item.id, item.type)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="col-span-2 flex items-center justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.type, -1)}
-                      >
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                      <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.type, 1)}
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <span className="col-span-2 text-right text-sm">{formatCurrency(item.price)}</span>
-                    <div className="col-span-2 flex items-center justify-end gap-2">
-                      <span className="font-bold text-sm text-primary">{formatCurrency(item.price * item.quantity)}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive"
-                        onClick={() => removeFromCart(item.id, item.type)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
