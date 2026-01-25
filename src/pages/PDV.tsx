@@ -481,21 +481,25 @@ export default function PDV() {
                     />
                     <span className="text-xs text-muted-foreground">= {formatCurrency(total - firstPaymentAmount)}</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-1">
-                    {paymentMethods.map((method) => (
-                      <button
-                        key={`second-${method.id}`}
-                        onClick={() => setSecondPaymentMethod(method.label)}
-                        className={cn(
-                          'flex items-center justify-center p-1.5 rounded text-xs transition-all',
-                          secondPaymentMethod === method.label
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-card hover:bg-accent/60'
-                        )}
-                      >
-                        <method.icon className="w-3 h-3" />
-                      </button>
-                    ))}
+                  <div>
+                    <span className="text-xs text-muted-foreground mb-1 block">2ª Forma:</span>
+                    <div className="grid grid-cols-2 gap-1">
+                      {paymentMethods.map((method) => (
+                        <button
+                          key={`second-${method.id}`}
+                          onClick={() => setSecondPaymentMethod(method.label)}
+                          className={cn(
+                            'flex items-center justify-center gap-1 p-1.5 rounded text-xs transition-all',
+                            secondPaymentMethod === method.label
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-card hover:bg-accent/60'
+                          )}
+                        >
+                          <method.icon className="w-3 h-3" />
+                          <span className="font-medium">{method.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
