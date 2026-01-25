@@ -67,7 +67,7 @@ export function UserManagement() {
     setIsDialogOpen(false);
   };
 
-  const handleEditRole = async (role: string) => {
+  const handleEditRole = async (role: 'admin' | 'tecnico' | 'caixa') => {
     if (!selectedUser) return;
     
     await updateUserRole.mutateAsync({ userId: selectedUser.user_id, role });
