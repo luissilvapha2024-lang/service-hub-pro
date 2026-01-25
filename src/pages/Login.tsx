@@ -198,9 +198,13 @@ export default function Login() {
                 <input type="checkbox" className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
                 <span className="text-sm text-muted-foreground">Lembrar de mim</span>
               </label>
-              <a href="#" className="text-sm text-primary hover:underline">
+              <button
+                type="button"
+                onClick={() => navigate('/recuperar-senha')}
+                className="text-sm text-primary hover:underline"
+              >
                 Esqueceu a senha?
-              </a>
+              </button>
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
