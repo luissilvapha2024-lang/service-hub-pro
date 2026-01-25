@@ -3,7 +3,7 @@ interface ReceiptItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'order';
 }
 
 interface ReceiptData {
@@ -38,13 +38,21 @@ export function printReceipt(data: ReceiptData): void {
     });
   };
 
+  const getItemTypeLabel = (type: 'product' | 'service' | 'order') => {
+    switch (type) {
+      case 'product': return 'Produto';
+      case 'service': return 'Serviço';
+      case 'order': return 'Ordem de Serviço';
+    }
+  };
+
   const itemsHtml = data.items
     .map(
       (item) => `
       <tr>
         <td style="padding: 4px 0; border-bottom: 1px dotted #ddd;">
           ${item.quantity}x ${item.name}
-          <small style="color: #666;">(${item.type === 'product' ? 'Produto' : 'Serviço'})</small>
+          <small style="color: #666;">(${getItemTypeLabel(item.type)})</small>
         </td>
         <td style="padding: 4px 0; text-align: right; border-bottom: 1px dotted #ddd;">
           ${formatCurrency(item.totalPrice)}
