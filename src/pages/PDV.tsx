@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
@@ -153,303 +153,339 @@ export default function PDV() {
     );
   }
 
+  const PanelHeader = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ElementType }) => (
+    <div className="bg-primary px-4 py-2 rounded-t-lg">
+      <h3 className="text-primary-foreground font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4" />}
+        {children}
+      </h3>
+    </div>
+  );
+
   return (
-    <div className="flex gap-6 h-[calc(100vh-7rem)] animate-fade-in">
-      {/* Products/Services Grid */}
-      <div className="flex-1 flex flex-col">
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold text-foreground">PDV</h1>
-          <p className="text-muted-foreground">Ponto de Venda</p>
+    <div className="flex flex-col h-[calc(100vh-7rem)] animate-fade-in">
+      {/* Header */}
+      <div className="bg-primary rounded-lg px-6 py-3 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-6 h-6 text-primary-foreground" />
+          <h1 className="text-xl font-bold text-primary-foreground uppercase tracking-wider">
+            Checkout - PDV
+          </h1>
         </div>
-
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar produto ou serviço..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        <div className="text-primary-foreground/80 text-sm">
+          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         </div>
-
-        <Tabs defaultValue="produtos" className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="produtos">Produtos</TabsTrigger>
-            <TabsTrigger value="servicos">Serviços</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="produtos" className="flex-1 overflow-auto">
-            {filteredProdutos.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Nenhum produto cadastrado.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filteredProdutos.map((produto) => (
-                  <button
-                    key={produto.id}
-                    onClick={() => addToCart({ id: produto.id, name: produto.name, price: Number(produto.price) }, 'product')}
-                    className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
-                  >
-                    <h4 className="font-medium text-foreground text-sm line-clamp-2">
-                      {produto.name}
-                    </h4>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-primary font-bold">
-                        {formatCurrency(Number(produto.price))}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Est: {produto.stock}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="servicos" className="flex-1 overflow-auto">
-            {filteredServicos.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Nenhum serviço cadastrado.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filteredServicos.map((servico) => (
-                  <button
-                    key={servico.id}
-                    onClick={() => addToCart({ id: servico.id, name: servico.name, price: Number(servico.price) }, 'service')}
-                    className="bg-card border rounded-xl p-4 text-left hover:border-primary hover:shadow-md transition-all"
-                  >
-                    <h4 className="font-medium text-foreground text-sm line-clamp-2">
-                      {servico.name}
-                    </h4>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-primary font-bold">
-                        {formatCurrency(Number(servico.price))}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
       </div>
 
-      {/* Cart */}
-      <div className="w-96 bg-card border rounded-xl flex flex-col shadow-soft">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2 mb-3">
-            <ShoppingCart className="w-5 h-5 text-primary" />
-            <h2 className="font-semibold text-foreground">Carrinho</h2>
-            <span className="ml-auto text-sm text-muted-foreground">
-              {cart.length} {cart.length === 1 ? 'item' : 'itens'}
-            </span>
-          </div>
-          
-          {/* Client Selection */}
-          <Popover open={isClientPopoverOpen} onOpenChange={setIsClientPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-              >
-                <User className="w-4 h-4 mr-2" />
-                {selectedClient ? (
-                  <span className="truncate">{selectedClient.name}</span>
-                ) : (
-                  <span className="text-muted-foreground">Cliente (opcional)</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="start">
-              <div className="p-2 border-b">
-                <Input
-                  placeholder="Buscar cliente..."
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-              <div className="max-h-60 overflow-auto">
-                {filteredClients.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground text-center">
-                    Nenhum cliente encontrado
-                  </p>
-                ) : (
-                  filteredClients.map((client) => (
-                    <button
-                      key={client.id}
-                      onClick={() => {
-                        setSelectedClientId(client.id);
-                        setClientSearch('');
-                        setIsClientPopoverOpen(false);
-                      }}
-                      className={cn(
-                        'w-full px-4 py-2 text-left hover:bg-muted transition-colors',
-                        selectedClientId === client.id && 'bg-primary/10'
-                      )}
-                    >
-                      <p className="font-medium text-sm">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">{client.phone}</p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-          
-          {selectedClient && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-2 text-muted-foreground"
-              onClick={() => setSelectedClientId(null)}
-            >
-              <X className="w-3 h-3 mr-1" />
-              Remover cliente
-            </Button>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-auto p-4 space-y-3">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <ShoppingCart className="w-12 h-12 mb-2 opacity-50" />
-              <p>Carrinho vazio</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={`${item.type}-${item.id}`}
-                className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-foreground">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatCurrency(item.price)} un
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.type, -1)}
-                  >
-                    <Minus className="w-3 h-3" />
-                  </Button>
-                  <span className="w-6 text-center font-medium">{item.quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.type, 1)}
-                  >
-                    <Plus className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => removeFromCart(item.id, item.type)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {cart.length > 0 && (
-          <div className="p-4 border-t space-y-3">
-            {/* Discount */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                Desconto (%)
-              </label>
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* Left Column - Search and Products */}
+        <div className="flex flex-col gap-4 w-80">
+          {/* Search Panel */}
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
+            <PanelHeader icon={Search}>Buscar</PanelHeader>
+            <div className="p-3">
               <Input
-                type="number"
-                min="0"
-                max="100"
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-                className="h-8 w-20"
+                placeholder="Código ou nome..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-accent/30 border-0"
               />
             </div>
+          </div>
 
-            {/* Totals */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="text-foreground">{formatCurrency(subtotal)}</span>
+          {/* Client Panel */}
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
+            <PanelHeader icon={User}>Cliente</PanelHeader>
+            <div className="p-3">
+              <Popover open={isClientPopoverOpen} onOpenChange={setIsClientPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal bg-accent/30 border-0"
+                  >
+                    {selectedClient ? (
+                      <span className="truncate">{selectedClient.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Selecionar cliente...</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Buscar cliente..."
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-auto">
+                    {filteredClients.length === 0 ? (
+                      <p className="p-3 text-sm text-muted-foreground text-center">
+                        Nenhum cliente encontrado
+                      </p>
+                    ) : (
+                      filteredClients.map((client) => (
+                        <button
+                          key={client.id}
+                          onClick={() => {
+                            setSelectedClientId(client.id);
+                            setClientSearch('');
+                            setIsClientPopoverOpen(false);
+                          }}
+                          className={cn(
+                            'w-full px-3 py-2 text-left hover:bg-muted transition-colors',
+                            selectedClientId === client.id && 'bg-primary/10'
+                          )}
+                        >
+                          <p className="font-medium text-sm">{client.name}</p>
+                          <p className="text-xs text-muted-foreground">{client.phone}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedClient && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2 text-xs text-muted-foreground h-7"
+                  onClick={() => setSelectedClientId(null)}
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Remover
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Tabs for Products/Services */}
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1 flex flex-col min-h-0">
+            <Tabs defaultValue="produtos" className="flex flex-col flex-1">
+              <div className="bg-primary/90 px-2 pt-2">
+                <TabsList className="grid w-full grid-cols-2 bg-primary/50 h-8">
+                  <TabsTrigger value="produtos" className="text-xs data-[state=active]:bg-card data-[state=active]:text-foreground text-primary-foreground/80">
+                    <Package className="w-3 h-3 mr-1" />
+                    Produtos
+                  </TabsTrigger>
+                  <TabsTrigger value="servicos" className="text-xs data-[state=active]:bg-card data-[state=active]:text-foreground text-primary-foreground/80">
+                    <Wrench className="w-3 h-3 mr-1" />
+                    Serviços
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="produtos" className="flex-1 overflow-auto p-2 m-0">
+                {filteredProdutos.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Nenhum produto
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredProdutos.map((produto) => (
+                      <button
+                        key={produto.id}
+                        onClick={() => addToCart({ id: produto.id, name: produto.name, price: Number(produto.price) }, 'product')}
+                        className="w-full bg-accent/30 hover:bg-accent/60 rounded-md p-2 text-left transition-all flex items-center justify-between"
+                      >
+                        <span className="font-medium text-foreground text-sm truncate flex-1">
+                          {produto.name}
+                        </span>
+                        <span className="text-primary font-bold text-sm ml-2">
+                          {formatCurrency(Number(produto.price))}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="servicos" className="flex-1 overflow-auto p-2 m-0">
+                {filteredServicos.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Nenhum serviço
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredServicos.map((servico) => (
+                      <button
+                        key={servico.id}
+                        onClick={() => addToCart({ id: servico.id, name: servico.name, price: Number(servico.price) }, 'service')}
+                        className="w-full bg-accent/30 hover:bg-accent/60 rounded-md p-2 text-left transition-all flex items-center justify-between"
+                      >
+                        <span className="font-medium text-foreground text-sm truncate flex-1">
+                          {servico.name}
+                        </span>
+                        <span className="text-primary font-bold text-sm ml-2">
+                          {formatCurrency(Number(servico.price))}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* Center - Product List / Cart Items */}
+        <div className="flex-1 bg-card border rounded-lg shadow-soft overflow-hidden flex flex-col min-h-0">
+          <PanelHeader icon={ShoppingCart}>Lista de Itens</PanelHeader>
+          
+          {/* Table Header */}
+          <div className="bg-primary/20 px-4 py-2 grid grid-cols-12 gap-2 text-xs font-semibold text-foreground border-b">
+            <span className="col-span-1">#</span>
+            <span className="col-span-5">Descrição</span>
+            <span className="col-span-2 text-center">Qtd</span>
+            <span className="col-span-2 text-right">Vlr. Unit</span>
+            <span className="col-span-2 text-right">Total</span>
+          </div>
+
+          {/* Cart Items */}
+          <div className="flex-1 overflow-auto">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                <ShoppingCart className="w-16 h-16 mb-3 opacity-30" />
+                <p className="text-sm">Nenhum item adicionado</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {cart.map((item, index) => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="px-4 py-2 grid grid-cols-12 gap-2 items-center hover:bg-muted/30 transition-colors"
+                  >
+                    <span className="col-span-1 text-sm text-muted-foreground">{index + 1}</span>
+                    <div className="col-span-5">
+                      <p className="font-medium text-sm text-foreground truncate">{item.name}</p>
+                      <span className="text-xs text-muted-foreground capitalize">{item.type === 'product' ? 'Produto' : 'Serviço'}</span>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(item.id, item.type, -1)}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                      <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(item.id, item.type, 1)}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <span className="col-span-2 text-right text-sm">{formatCurrency(item.price)}</span>
+                    <div className="col-span-2 flex items-center justify-end gap-2">
+                      <span className="font-bold text-sm text-primary">{formatCurrency(item.price * item.quantity)}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => removeFromCart(item.id, item.type)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Subtotal Footer */}
+          <div className="border-t bg-primary/10 p-4">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-bold text-foreground uppercase">Subtotal</span>
+              <span className="text-2xl font-bold text-primary">{formatCurrency(subtotal)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Payment */}
+        <div className="w-72 flex flex-col gap-4">
+          {/* Discount */}
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
+            <PanelHeader>Desconto</PanelHeader>
+            <div className="p-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={discount}
+                  onChange={(e) => setDiscount(Number(e.target.value))}
+                  className="bg-accent/30 border-0 text-center font-bold"
+                />
+                <span className="text-muted-foreground font-medium">%</span>
               </div>
               {discount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Desconto ({discount}%)</span>
-                  <span>-{formatCurrency(discountAmount)}</span>
-                </div>
+                <p className="text-xs text-green-600 mt-2 text-center font-medium">
+                  -{formatCurrency(discountAmount)}
+                </p>
               )}
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span className="text-primary">{formatCurrency(total)}</span>
-              </div>
             </div>
+          </div>
 
-            {/* Payment Methods */}
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Pagamento {splitPayment && '(1ª)'}
-              </label>
-              <div className="grid grid-cols-4 gap-2 mt-1">
+          {/* Payment Method */}
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
+            <PanelHeader icon={CreditCard}>Pagamento {splitPayment && '(1ª)'}</PanelHeader>
+            <div className="p-3">
+              <div className="grid grid-cols-2 gap-2">
                 {paymentMethods.map((method) => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.label)}
                     className={cn(
-                      'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs',
+                      'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-xs',
                       paymentMethod === method.label
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:border-muted-foreground'
+                        : 'border-transparent bg-accent/30 hover:bg-accent/60'
                     )}
                   >
-                    <method.icon className="w-4 h-4" />
+                    <method.icon className="w-5 h-5" />
                     <span className="font-medium">{method.label}</span>
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Split Payment Toggle */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="splitPayment"
-                checked={splitPayment}
-                onChange={(e) => {
-                  setSplitPayment(e.target.checked);
-                  if (e.target.checked) {
-                    setFirstPaymentAmount(Math.floor(total / 2 * 100) / 100);
-                  } else {
-                    setSecondPaymentMethod('');
-                    setFirstPaymentAmount(0);
-                  }
-                }}
-                className="h-4 w-4 rounded border-border"
-              />
-              <label htmlFor="splitPayment" className="text-xs text-muted-foreground">
-                Dividir pagamento
-              </label>
+              {/* Split Payment */}
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                <input
+                  type="checkbox"
+                  id="splitPayment"
+                  checked={splitPayment}
+                  onChange={(e) => {
+                    setSplitPayment(e.target.checked);
+                    if (e.target.checked) {
+                      setFirstPaymentAmount(Math.floor(total / 2 * 100) / 100);
+                    } else {
+                      setSecondPaymentMethod('');
+                      setFirstPaymentAmount(0);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                <label htmlFor="splitPayment" className="text-xs text-muted-foreground">
+                  Dividir pagamento
+                </label>
+              </div>
             </div>
+          </div>
 
-            {/* Split Payment Details */}
-            {splitPayment && (
-              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+          {/* Split Payment Details */}
+          {splitPayment && (
+            <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
+              <PanelHeader>Divisão</PanelHeader>
+              <div className="p-3 space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Valor 1ª forma ({paymentMethod || '...'})
+                  <label className="text-xs text-muted-foreground mb-1 block">
+                    Valor 1ª ({paymentMethod || '...'})
                   </label>
                   <Input
                     type="number"
@@ -458,60 +494,53 @@ export default function PDV() {
                     step="0.01"
                     value={firstPaymentAmount}
                     onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
-                    className="h-8 mt-1"
+                    className="bg-accent/30 border-0 text-center font-bold h-8"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Restante: {formatCurrency(total - firstPaymentAmount)}
-                  </p>
                 </div>
-
+                <div className="text-center text-xs text-muted-foreground">
+                  Restante: <span className="font-bold text-foreground">{formatCurrency(total - firstPaymentAmount)}</span>
+                </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    2ª Forma
-                  </label>
-                  <div className="grid grid-cols-4 gap-2 mt-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">2ª Forma</label>
+                  <div className="grid grid-cols-2 gap-1">
                     {paymentMethods.map((method) => (
                       <button
                         key={`second-${method.id}`}
                         onClick={() => setSecondPaymentMethod(method.label)}
                         className={cn(
-                          'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all text-xs',
+                          'flex items-center justify-center gap-1 p-2 rounded-md border transition-all text-xs',
                           secondPaymentMethod === method.label
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border hover:border-muted-foreground'
+                            : 'border-transparent bg-accent/30 hover:bg-accent/60'
                         )}
                       >
-                        <method.icon className="w-4 h-4" />
+                        <method.icon className="w-3 h-3" />
                         <span className="font-medium">{method.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Checkout Button */}
+          {/* Total and Checkout */}
+          <div className="bg-primary rounded-lg shadow-soft overflow-hidden mt-auto">
+            <div className="p-4 text-center">
+              <span className="text-primary-foreground/80 text-sm uppercase font-medium">Total</span>
+              <p className="text-3xl font-bold text-primary-foreground">{formatCurrency(total)}</p>
+            </div>
             <Button 
-              className="w-full" 
-              size="lg" 
+              className="w-full rounded-none h-12 text-base font-bold bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
               onClick={handleCheckout}
-              disabled={!paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
+              disabled={cart.length === 0 || !paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
             >
-              {createSale.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <Receipt className="w-4 h-4 mr-2" />
+              {createSale.isPending && <Loader2 className="w-5 h-5 mr-2 animate-spin" />}
+              <Receipt className="w-5 h-5 mr-2" />
               Finalizar Venda
             </Button>
           </div>
-        )}
-
-        {cart.length === 0 && (
-          <div className="p-4 border-t">
-            <Button className="w-full" size="lg" disabled>
-              <Receipt className="w-4 h-4 mr-2" />
-              Finalizar Venda
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
