@@ -409,120 +409,98 @@ export default function PDV() {
 
         {/* Right Column - Payment */}
         <div className="w-72 flex flex-col gap-4">
-          {/* Discount */}
-          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
-            <PanelHeader>Desconto</PanelHeader>
-            <div className="p-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="bg-accent/30 border-0 text-center font-bold"
-                />
-                <span className="text-muted-foreground font-medium">%</span>
-              </div>
-              {discount > 0 && (
-                <p className="text-xs text-green-600 mt-2 text-center font-medium">
-                  -{formatCurrency(discountAmount)}
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Payment Method */}
-          <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
-            <PanelHeader icon={CreditCard}>Pagamento {splitPayment && '(1ª)'}</PanelHeader>
-            <div className="p-3">
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1">
+            <PanelHeader icon={CreditCard}>Pagamento</PanelHeader>
+            <div className="p-3 space-y-3">
+              {/* Payment Grid */}
               <div className="grid grid-cols-2 gap-2">
                 {paymentMethods.map((method) => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.label)}
                     className={cn(
-                      'flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-xs',
+                      'flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all text-xs',
                       paymentMethod === method.label
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-transparent bg-accent/30 hover:bg-accent/60'
                     )}
                   >
-                    <method.icon className="w-5 h-5" />
+                    <method.icon className="w-4 h-4" />
                     <span className="font-medium">{method.label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Split Payment */}
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                <input
-                  type="checkbox"
-                  id="splitPayment"
-                  checked={splitPayment}
-                  onChange={(e) => {
-                    setSplitPayment(e.target.checked);
-                    if (e.target.checked) {
-                      setFirstPaymentAmount(Math.floor(total / 2 * 100) / 100);
-                    } else {
-                      setSecondPaymentMethod('');
-                      setFirstPaymentAmount(0);
-                    }
-                  }}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                />
-                <label htmlFor="splitPayment" className="text-xs text-muted-foreground">
-                  Dividir pagamento
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Split Payment Details */}
-          {splitPayment && (
-            <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
-              <PanelHeader>Divisão</PanelHeader>
-              <div className="p-3 space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">
-                    Valor 1ª ({paymentMethod || '...'})
-                  </label>
+              {/* Discount + Split Row */}
+              <div className="flex items-center gap-3 pt-2 border-t">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">Desc:</span>
                   <Input
                     type="number"
-                    min="0.01"
-                    max={total - 0.01}
-                    step="0.01"
-                    value={firstPaymentAmount}
-                    onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
-                    className="bg-accent/30 border-0 text-center font-bold h-8"
+                    min="0"
+                    max="100"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value))}
+                    className="bg-accent/30 border-0 text-center font-bold h-7 w-14 text-xs"
                   />
+                  <span className="text-xs text-muted-foreground">%</span>
                 </div>
-                <div className="text-center text-xs text-muted-foreground">
-                  Restante: <span className="font-bold text-foreground">{formatCurrency(total - firstPaymentAmount)}</span>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">2ª Forma</label>
-                  <div className="grid grid-cols-2 gap-1">
+                <label className="flex items-center gap-1 cursor-pointer ml-auto">
+                  <input
+                    type="checkbox"
+                    checked={splitPayment}
+                    onChange={(e) => {
+                      setSplitPayment(e.target.checked);
+                      if (e.target.checked) {
+                        setFirstPaymentAmount(Math.floor(total / 2 * 100) / 100);
+                      } else {
+                        setSecondPaymentMethod('');
+                        setFirstPaymentAmount(0);
+                      }
+                    }}
+                    className="h-3 w-3 rounded border-border accent-primary"
+                  />
+                  <span className="text-xs text-muted-foreground">Dividir</span>
+                </label>
+              </div>
+
+              {/* Split Payment Details - Compact */}
+              {splitPayment && (
+                <div className="bg-muted/50 rounded-md p-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">1ª:</span>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      max={total - 0.01}
+                      step="0.01"
+                      value={firstPaymentAmount}
+                      onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
+                      className="bg-card border-0 text-center font-bold h-6 text-xs flex-1"
+                    />
+                    <span className="text-xs text-muted-foreground">= {formatCurrency(total - firstPaymentAmount)}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
                     {paymentMethods.map((method) => (
                       <button
                         key={`second-${method.id}`}
                         onClick={() => setSecondPaymentMethod(method.label)}
                         className={cn(
-                          'flex items-center justify-center gap-1 p-2 rounded-md border transition-all text-xs',
+                          'flex items-center justify-center p-1.5 rounded text-xs transition-all',
                           secondPaymentMethod === method.label
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-transparent bg-accent/30 hover:bg-accent/60'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card hover:bg-accent/60'
                         )}
                       >
                         <method.icon className="w-3 h-3" />
-                        <span className="font-medium">{method.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Total and Checkout */}
           <div className="bg-primary rounded-lg shadow-soft overflow-hidden mt-auto">
