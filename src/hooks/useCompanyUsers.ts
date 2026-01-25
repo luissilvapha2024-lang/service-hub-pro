@@ -90,7 +90,7 @@ export function useCompanyUsers() {
   });
 
   const updateUserRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'tecnico' | 'caixa' }) => {
       const { error } = await supabase
         .from('user_roles')
         .update({ role })
