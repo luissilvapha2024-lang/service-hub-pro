@@ -17,17 +17,25 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions, PermissionKey } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 
-const menuItems = [
+interface MenuItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  permissionKey?: PermissionKey;
+}
+
+const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: Users, label: 'Clientes', path: '/clientes' },
   { icon: Wrench, label: 'Serviços', path: '/servicos' },
   { icon: Package, label: 'Produtos', path: '/produtos' },
   { icon: ClipboardList, label: 'Ordens de Serviço', path: '/ordens' },
   { icon: ShoppingCart, label: 'PDV', path: '/pdv' },
-  { icon: DollarSign, label: 'Financeiro', path: '/financeiro' },
-  { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
+  { icon: DollarSign, label: 'Financeiro', path: '/financeiro', permissionKey: 'ver_financeiro' },
+  { icon: BarChart3, label: 'Relatórios', path: '/relatorios', permissionKey: 'ver_relatorios' },
   { icon: Settings, label: 'Configurações', path: '/configuracoes' },
 ];
 
@@ -36,6 +44,13 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, profile } = useAuth();
+  const { hasPermission } = usePermissions();
+
+  // Filter menu items based on permissions
+  const filteredMenuItems = menuItems.filter(item => {
+    if (!item.permissionKey) return true;
+    return hasPermission(item.permissionKey);
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -66,7 +81,7 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <li key={item.path}>
