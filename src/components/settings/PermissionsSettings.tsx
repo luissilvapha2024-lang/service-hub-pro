@@ -38,9 +38,12 @@ export function PermissionsSettings() {
   const [localPermissions, setLocalPermissions] = useState<Record<string, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize local permissions from database
+  // Initialize local permissions from database only once when data loads
   useEffect(() => {
+    if (isLoading || isInitialized) return;
+    
     const initial: Record<string, boolean> = {};
     permissionConfig.forEach(perm => {
       perm.roles.forEach(role => {
@@ -49,7 +52,8 @@ export function PermissionsSettings() {
       });
     });
     setLocalPermissions(initial);
-  }, [getPermission, isLoading]);
+    setIsInitialized(true);
+  }, [isLoading, isInitialized, getPermission]);
 
   const handleToggle = (permKey: PermissionKey, role: AppRole, checked: boolean) => {
     const key = `${permKey}_${role}`;
