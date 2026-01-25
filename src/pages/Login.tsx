@@ -166,13 +166,6 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
-
-          <p className="text-center text-muted-foreground">
-            Não tem uma conta?{' '}
-            <Link to="/cadastro" className="text-primary font-medium hover:underline">
-              Cadastre-se
-            </Link>
-          </p>
         </div>
       </div>
     </div>
