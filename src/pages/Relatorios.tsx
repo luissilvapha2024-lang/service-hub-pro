@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
@@ -15,6 +15,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import {
   BarChart,
@@ -32,17 +38,56 @@ import {
 } from 'recharts';
 import { exportToCSV, formatCurrencyForExport } from '@/utils/exportCSV';
 import { exportToPDF } from '@/utils/exportPDF';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const periodLabels: Record<string, string> = {
   semana: 'Esta semana',
   mes: 'Este mês',
   trimestre: 'Este trimestre',
   ano: 'Este ano',
+  personalizado: 'Personalizado',
 };
 
 export default function Relatorios() {
   const [period, setPeriod] = useState('mes');
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
   const { toast } = useToast();
+
+  // Update date range when period changes
+  const handlePeriodChange = (value: string) => {
+    setPeriod(value);
+    const now = new Date();
+    
+    switch (value) {
+      case 'semana':
+        setStartDate(startOfWeek(now, { locale: ptBR }));
+        setEndDate(endOfWeek(now, { locale: ptBR }));
+        break;
+      case 'mes':
+        setStartDate(startOfMonth(now));
+        setEndDate(endOfMonth(now));
+        break;
+      case 'trimestre':
+        setStartDate(startOfQuarter(now));
+        setEndDate(endOfQuarter(now));
+        break;
+      case 'ano':
+        setStartDate(startOfYear(now));
+        setEndDate(endOfYear(now));
+        break;
+      // 'personalizado' - keep current dates
+    }
+  };
+
+  const getDisplayPeriod = () => {
+    if (period === 'personalizado' && startDate && endDate) {
+      return `${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')}`;
+    }
+    return periodLabels[period];
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -134,7 +179,7 @@ export default function Relatorios() {
         title: data.title,
         headers: data.headers,
         data: data.data,
-        period: periodLabels[period],
+        period: getDisplayPeriod(),
       });
     }
 
@@ -167,13 +212,13 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground">Análises e métricas do negócio</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={period} onValueChange={setPeriod}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={period} onValueChange={handlePeriodChange}>
             <SelectTrigger className="w-40">
               <Calendar className="w-4 h-4 mr-2" />
               <SelectValue />
@@ -183,8 +228,63 @@ export default function Relatorios() {
               <SelectItem value="mes">Este mês</SelectItem>
               <SelectItem value="trimestre">Trimestre</SelectItem>
               <SelectItem value="ano">Este ano</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
             </SelectContent>
           </Select>
+
+          {period === 'personalizado' && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy") : "Início"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground">até</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy") : "Fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
       </div>
 
