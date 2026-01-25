@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
@@ -9,6 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import {
   BarChart,
@@ -25,6 +31,14 @@ import {
   Line,
 } from 'recharts';
 import { exportToCSV, formatCurrencyForExport } from '@/utils/exportCSV';
+import { exportToPDF } from '@/utils/exportPDF';
+
+const periodLabels: Record<string, string> = {
+  semana: 'Esta semana',
+  mes: 'Este mês',
+  trimestre: 'Este trimestre',
+  ano: 'Este ano',
+};
 
 export default function Relatorios() {
   const [period, setPeriod] = useState('mes');
@@ -62,53 +76,38 @@ export default function Relatorios() {
 
   const clientesFrequentes = mockClientes.sort((a, b) => b.totalOS - a.totalOS).slice(0, 5);
 
-  const handleExportVendas = () => {
-    exportToCSV({
-      filename: `relatorio-vendas-${period}`,
+  // Export data definitions
+  const exportData = {
+    vendas: {
+      title: 'Relatório de Vendas',
       headers: ['Mês', 'Vendas (R$)', 'Serviços (R$)'],
       data: vendasMensal.map(item => [
         item.mes,
         formatCurrencyForExport(item.vendas),
         formatCurrencyForExport(item.servicos),
       ]),
-    });
-    toast({ title: 'Exportado!', description: 'Relatório de vendas baixado com sucesso.' });
-  };
-
-  const handleExportOrdens = () => {
-    exportToCSV({
-      filename: `relatorio-status-ordens-${period}`,
+    },
+    ordens: {
+      title: 'Status das Ordens de Serviço',
       headers: ['Status', 'Quantidade'],
       data: osStatus.map(item => [item.name, item.value]),
-    });
-    toast({ title: 'Exportado!', description: 'Relatório de ordens baixado com sucesso.' });
-  };
-
-  const handleExportServicos = () => {
-    exportToCSV({
-      filename: `relatorio-servicos-${period}`,
+    },
+    servicos: {
+      title: 'Serviços Mais Vendidos',
       headers: ['Serviço', 'Quantidade'],
       data: mockDashboardData.servicosMaisRealizados.map(item => [item.nome, item.quantidade]),
-    });
-    toast({ title: 'Exportado!', description: 'Relatório de serviços baixado com sucesso.' });
-  };
-
-  const handleExportTecnicos = () => {
-    exportToCSV({
-      filename: `relatorio-tecnicos-${period}`,
+    },
+    tecnicos: {
+      title: 'Produtividade por Técnico',
       headers: ['Técnico', 'Serviços Realizados', 'Valor Total (R$)'],
       data: tecnicosProdutividade.map(item => [
         item.nome,
         item.servicos,
         formatCurrencyForExport(item.valor),
       ]),
-    });
-    toast({ title: 'Exportado!', description: 'Relatório de técnicos baixado com sucesso.' });
-  };
-
-  const handleExportClientes = () => {
-    exportToCSV({
-      filename: `relatorio-clientes-frequentes-${period}`,
+    },
+    clientes: {
+      title: 'Clientes Mais Frequentes',
       headers: ['Cliente', 'Telefone', 'Total de OS', 'Última Visita'],
       data: clientesFrequentes.map(item => [
         item.nome,
@@ -116,9 +115,55 @@ export default function Relatorios() {
         item.totalOS,
         new Date(item.ultimaVisita).toLocaleDateString('pt-BR'),
       ]),
-    });
-    toast({ title: 'Exportado!', description: 'Relatório de clientes baixado com sucesso.' });
+    },
   };
+
+  const handleExport = (type: keyof typeof exportData, format: 'csv' | 'pdf') => {
+    const data = exportData[type];
+    const filename = `relatorio-${type}-${period}`;
+
+    if (format === 'csv') {
+      exportToCSV({
+        filename,
+        headers: data.headers,
+        data: data.data,
+      });
+    } else {
+      exportToPDF({
+        filename,
+        title: data.title,
+        headers: data.headers,
+        data: data.data,
+        period: periodLabels[period],
+      });
+    }
+
+    toast({
+      title: 'Exportado!',
+      description: `${data.title} baixado em ${format.toUpperCase()}.`,
+    });
+  };
+
+  const ExportButton = ({ type }: { type: keyof typeof exportData }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Download className="w-4 h-4 mr-2" />
+          Exportar
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleExport(type, 'csv')}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          CSV (Excel)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport(type, 'pdf')}>
+          <FileText className="w-4 h-4 mr-2" />
+          PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -152,10 +197,7 @@ export default function Relatorios() {
               <TrendingUp className="w-5 h-5 text-primary" />
               Vendas por Período
             </h3>
-            <Button variant="outline" size="sm" onClick={handleExportVendas}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            <ExportButton type="vendas" />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -199,10 +241,7 @@ export default function Relatorios() {
               <PieChart className="w-5 h-5 text-primary" />
               Status das Ordens
             </h3>
-            <Button variant="outline" size="sm" onClick={handleExportOrdens}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            <ExportButton type="ordens" />
           </div>
           <div className="h-64 flex items-center">
             <ResponsiveContainer width="60%" height="100%">
@@ -253,10 +292,7 @@ export default function Relatorios() {
               <BarChart3 className="w-5 h-5 text-primary" />
               Serviços Mais Vendidos
             </h3>
-            <Button variant="outline" size="sm" onClick={handleExportServicos}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            <ExportButton type="servicos" />
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -290,10 +326,7 @@ export default function Relatorios() {
               <Users className="w-5 h-5 text-primary" />
               Produtividade por Técnico
             </h3>
-            <Button variant="outline" size="sm" onClick={handleExportTecnicos}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
+            <ExportButton type="tecnicos" />
           </div>
           <div className="space-y-4">
             {tecnicosProdutividade.map((tecnico, index) => (
@@ -329,10 +362,7 @@ export default function Relatorios() {
             <Users className="w-5 h-5 text-primary" />
             Clientes Mais Frequentes
           </h3>
-          <Button variant="outline" size="sm" onClick={handleExportClientes}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
+          <ExportButton type="clientes" />
         </div>
         <table className="w-full">
           <thead>
