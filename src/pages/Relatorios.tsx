@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockDashboardData, mockOrdensServico, mockClientes, mockUsuarios } from '@/data/mockData';
+import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
   Select,
   SelectContent,
@@ -24,6 +24,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
+import { exportToCSV, formatCurrencyForExport } from '@/utils/exportCSV';
 
 export default function Relatorios() {
   const [period, setPeriod] = useState('mes');
@@ -34,13 +35,6 @@ export default function Relatorios() {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
-  };
-
-  const handleExport = (type: string) => {
-    toast({
-      title: 'Exportando relatório',
-      description: `Relatório de ${type} será baixado em breve.`,
-    });
   };
 
   // Mock data for charts
@@ -67,6 +61,64 @@ export default function Relatorios() {
   ];
 
   const clientesFrequentes = mockClientes.sort((a, b) => b.totalOS - a.totalOS).slice(0, 5);
+
+  const handleExportVendas = () => {
+    exportToCSV({
+      filename: `relatorio-vendas-${period}`,
+      headers: ['Mês', 'Vendas (R$)', 'Serviços (R$)'],
+      data: vendasMensal.map(item => [
+        item.mes,
+        formatCurrencyForExport(item.vendas),
+        formatCurrencyForExport(item.servicos),
+      ]),
+    });
+    toast({ title: 'Exportado!', description: 'Relatório de vendas baixado com sucesso.' });
+  };
+
+  const handleExportOrdens = () => {
+    exportToCSV({
+      filename: `relatorio-status-ordens-${period}`,
+      headers: ['Status', 'Quantidade'],
+      data: osStatus.map(item => [item.name, item.value]),
+    });
+    toast({ title: 'Exportado!', description: 'Relatório de ordens baixado com sucesso.' });
+  };
+
+  const handleExportServicos = () => {
+    exportToCSV({
+      filename: `relatorio-servicos-${period}`,
+      headers: ['Serviço', 'Quantidade'],
+      data: mockDashboardData.servicosMaisRealizados.map(item => [item.nome, item.quantidade]),
+    });
+    toast({ title: 'Exportado!', description: 'Relatório de serviços baixado com sucesso.' });
+  };
+
+  const handleExportTecnicos = () => {
+    exportToCSV({
+      filename: `relatorio-tecnicos-${period}`,
+      headers: ['Técnico', 'Serviços Realizados', 'Valor Total (R$)'],
+      data: tecnicosProdutividade.map(item => [
+        item.nome,
+        item.servicos,
+        formatCurrencyForExport(item.valor),
+      ]),
+    });
+    toast({ title: 'Exportado!', description: 'Relatório de técnicos baixado com sucesso.' });
+  };
+
+  const handleExportClientes = () => {
+    exportToCSV({
+      filename: `relatorio-clientes-frequentes-${period}`,
+      headers: ['Cliente', 'Telefone', 'Total de OS', 'Última Visita'],
+      data: clientesFrequentes.map(item => [
+        item.nome,
+        item.telefone,
+        item.totalOS,
+        new Date(item.ultimaVisita).toLocaleDateString('pt-BR'),
+      ]),
+    });
+    toast({ title: 'Exportado!', description: 'Relatório de clientes baixado com sucesso.' });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -100,7 +152,7 @@ export default function Relatorios() {
               <TrendingUp className="w-5 h-5 text-primary" />
               Vendas por Período
             </h3>
-            <Button variant="outline" size="sm" onClick={() => handleExport('vendas')}>
+            <Button variant="outline" size="sm" onClick={handleExportVendas}>
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
@@ -147,7 +199,7 @@ export default function Relatorios() {
               <PieChart className="w-5 h-5 text-primary" />
               Status das Ordens
             </h3>
-            <Button variant="outline" size="sm" onClick={() => handleExport('ordens')}>
+            <Button variant="outline" size="sm" onClick={handleExportOrdens}>
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
@@ -201,7 +253,7 @@ export default function Relatorios() {
               <BarChart3 className="w-5 h-5 text-primary" />
               Serviços Mais Vendidos
             </h3>
-            <Button variant="outline" size="sm" onClick={() => handleExport('servicos')}>
+            <Button variant="outline" size="sm" onClick={handleExportServicos}>
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
@@ -238,7 +290,7 @@ export default function Relatorios() {
               <Users className="w-5 h-5 text-primary" />
               Produtividade por Técnico
             </h3>
-            <Button variant="outline" size="sm" onClick={() => handleExport('tecnicos')}>
+            <Button variant="outline" size="sm" onClick={handleExportTecnicos}>
               <Download className="w-4 h-4 mr-2" />
               Exportar
             </Button>
@@ -277,7 +329,7 @@ export default function Relatorios() {
             <Users className="w-5 h-5 text-primary" />
             Clientes Mais Frequentes
           </h3>
-          <Button variant="outline" size="sm" onClick={() => handleExport('clientes')}>
+          <Button variant="outline" size="sm" onClick={handleExportClientes}>
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </Button>
