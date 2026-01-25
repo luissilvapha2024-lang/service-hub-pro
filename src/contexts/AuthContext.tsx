@@ -2,14 +2,24 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface Company {
+  id: string;
+  cnpj: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  logo_url?: string;
+}
+
 interface Profile {
   id: string;
   user_id: string;
   name: string;
   email: string;
   avatar_url?: string;
-  company_name?: string;
+  company_id?: string;
   company_cnpj?: string;
+  company_name?: string;
   company_phone?: string;
   company_address?: string;
   company_logo_url?: string;
@@ -19,12 +29,14 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  company: Company | null;
+  companyId: string | null;
   role: 'admin' | 'tecnico' | 'caixa' | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, cnpj: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  register: (data: { name: string; email: string; password: string; companyName: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { name: string; email: string; password: string; companyName: string; cnpj: string }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [role, setRole] = useState<'admin' | 'tecnico' | 'caixa' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }, 0);
         } else {
           setProfile(null);
+          setCompany(null);
+          setCompanyId(null);
           setRole(null);
         }
       }
@@ -80,6 +96,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (!error && data) {
       setProfile(data as Profile);
+      setCompanyId(data.company_id);
+      
+      // Fetch company details if company_id exists
+      if (data.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', data.company_id)
+          .single();
+        
+        if (companyData) {
+          setCompany(companyData as Company);
+        }
+      }
     }
   };
 
@@ -95,8 +125,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string, cnpj: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // First, verify that the CNPJ exists and the user belongs to it
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('cnpj', cnpj.replace(/\D/g, ''))
+        .maybeSingle();
+      
+      if (companyError) {
+        return { success: false, error: 'Erro ao verificar empresa.' };
+      }
+      
+      if (!companyData) {
+        return { success: false, error: 'CNPJ não encontrado no sistema.' };
+      }
+
+      // Attempt login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -111,6 +157,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, error: error.message };
       }
+
+      // Verify user belongs to the company
+      if (data.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (!profileData?.company_id || profileData.company_id !== companyData.id) {
+          // User doesn't belong to this company, logout
+          await supabase.auth.signOut();
+          return { success: false, error: 'Este usuário não está vinculado a esta empresa.' };
+        }
+      }
       
       return { success: true };
     } catch (err) {
@@ -123,11 +184,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setCompany(null);
+    setCompanyId(null);
     setRole(null);
   };
 
-  const register = async (data: { name: string; email: string; password: string; companyName: string }): Promise<{ success: boolean; error?: string }> => {
+  const register = async (data: { name: string; email: string; password: string; companyName: string; cnpj: string }): Promise<{ success: boolean; error?: string }> => {
     try {
+      const cleanCnpj = data.cnpj.replace(/\D/g, '');
+      
+      if (cleanCnpj.length !== 14) {
+        return { success: false, error: 'CNPJ inválido. Deve conter 14 dígitos.' };
+      }
+
+      // Check if CNPJ already exists
+      const { data: existingCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('cnpj', cleanCnpj)
+        .maybeSingle();
+      
+      if (existingCompany) {
+        return { success: false, error: 'Este CNPJ já está cadastrado. Entre em contato com o administrador da empresa.' };
+      }
+
       const redirectUrl = `${window.location.origin}/`;
       
       const { data: authData, error } = await supabase.auth.signUp({
@@ -138,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             name: data.name,
             company_name: data.companyName,
+            company_cnpj: cleanCnpj,
           },
         },
       });
@@ -147,14 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: 'Este email já está cadastrado.' };
         }
         return { success: false, error: error.message };
-      }
-      
-      // Update profile with company name after signup
-      if (authData.user) {
-        await supabase
-          .from('profiles')
-          .update({ company_name: data.companyName })
-          .eq('user_id', authData.user.id);
       }
       
       return { success: true };
@@ -168,6 +241,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, 
       session, 
       profile, 
+      company,
+      companyId,
       role, 
       isAuthenticated: !!session, 
       isLoading, 

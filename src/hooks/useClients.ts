@@ -9,31 +9,32 @@ export type ClientInsert = TablesInsert<'clients'>;
 export type ClientUpdate = TablesUpdate<'clients'>;
 
 export function useClients() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: clients = [], isLoading, error } = useQuery({
-    queryKey: ['clients', user?.id],
+    queryKey: ['clients', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createClient = useMutation({
-    mutationFn: async (client: Omit<ClientInsert, 'user_id'>) => {
-      if (!user) throw new Error('Usuário não autenticado');
+    mutationFn: async (client: Omit<ClientInsert, 'user_id' | 'company_id'>) => {
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       const { data, error } = await supabase
         .from('clients')
-        .insert({ ...client, user_id: user.id })
+        .insert({ ...client, user_id: user.id, company_id: companyId })
         .select()
         .single();
       

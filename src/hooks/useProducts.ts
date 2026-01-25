@@ -9,31 +9,32 @@ export type ProductInsert = TablesInsert<'products'>;
 export type ProductUpdate = TablesUpdate<'products'>;
 
 export function useProducts() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading, error } = useQuery({
-    queryKey: ['products', user?.id],
+    queryKey: ['products', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('company_id', companyId)
         .order('name', { ascending: true });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createProduct = useMutation({
-    mutationFn: async (product: Omit<ProductInsert, 'user_id'>) => {
-      if (!user) throw new Error('Usuário não autenticado');
+    mutationFn: async (product: Omit<ProductInsert, 'user_id' | 'company_id'>) => {
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       const { data, error } = await supabase
         .from('products')
-        .insert({ ...product, user_id: user.id })
+        .insert({ ...product, user_id: user.id, company_id: companyId })
         .select()
         .single();
       

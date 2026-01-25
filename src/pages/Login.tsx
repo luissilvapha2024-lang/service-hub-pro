@@ -1,13 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Smartphone, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Smartphone, Mail, Lock, Eye, EyeOff, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+function formatCNPJ(value: string): string {
+  const numbers = value.replace(/\D/g, '');
+  return numbers
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
 export default function Login() {
+  const [cnpj, setCnpj] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +37,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim() || !password.trim()) {
+    if (!cnpj.trim() || !email.trim() || !password.trim()) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos.',
@@ -34,10 +45,20 @@ export default function Login() {
       });
       return;
     }
+
+    const cleanCnpj = cnpj.replace(/\D/g, '');
+    if (cleanCnpj.length !== 14) {
+      toast({
+        title: 'Erro',
+        description: 'CNPJ inválido. Deve conter 14 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setLoading(true);
     
-    const result = await login(email, password);
+    const result = await login(email, password, cnpj);
     
     if (result.success) {
       toast({
@@ -54,6 +75,10 @@ export default function Login() {
     }
     
     setLoading(false);
+  };
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCnpj(formatCNPJ(e.target.value));
   };
 
   if (isLoading) {
@@ -82,15 +107,15 @@ export default function Login() {
           <div className="mt-12 space-y-4">
             <div className="flex items-center gap-3 text-sidebar-foreground/70">
               <div className="w-2 h-2 rounded-full bg-primary" />
+              <span>Multi-empresas com isolamento por CNPJ</span>
+            </div>
+            <div className="flex items-center gap-3 text-sidebar-foreground/70">
+              <div className="w-2 h-2 rounded-full bg-primary" />
               <span>Controle de Ordens de Serviço</span>
             </div>
             <div className="flex items-center gap-3 text-sidebar-foreground/70">
               <div className="w-2 h-2 rounded-full bg-primary" />
-              <span>PDV Integrado</span>
-            </div>
-            <div className="flex items-center gap-3 text-sidebar-foreground/70">
-              <div className="w-2 h-2 rounded-full bg-primary" />
-              <span>Gestão Financeira Completa</span>
+              <span>PDV Integrado e Gestão Financeira</span>
             </div>
           </div>
         </div>
@@ -113,6 +138,22 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="cnpj">CNPJ da Empresa</Label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="cnpj"
+                  type="text"
+                  placeholder="00.000.000/0000-00"
+                  value={cnpj}
+                  onChange={handleCnpjChange}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <div className="relative">
