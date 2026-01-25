@@ -7,10 +7,21 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+function formatCNPJ(value: string): string {
+  const numbers = value.replace(/\D/g, '');
+  return numbers
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
 export default function Cadastro() {
   const [formData, setFormData] = useState({
     name: '',
     companyName: '',
+    cnpj: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -31,10 +42,20 @@ export default function Cadastro() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim() || !formData.cnpj.trim() || !formData.companyName.trim()) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanCnpj = formData.cnpj.replace(/\D/g, '');
+    if (cleanCnpj.length !== 14) {
+      toast({
+        title: 'Erro',
+        description: 'CNPJ inválido. Deve conter 14 dígitos.',
         variant: 'destructive',
       });
       return;
@@ -65,6 +86,7 @@ export default function Cadastro() {
       email: formData.email,
       password: formData.password,
       companyName: formData.companyName,
+      cnpj: formData.cnpj,
     });
     
     if (result.success) {
@@ -85,7 +107,11 @@ export default function Cadastro() {
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'cnpj') {
+      setFormData(prev => ({ ...prev, [field]: formatCNPJ(value) }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   if (isLoading) {
@@ -118,7 +144,7 @@ export default function Cadastro() {
             </div>
             <div className="flex items-center gap-3 text-sidebar-foreground/70">
               <div className="w-2 h-2 rounded-full bg-primary" />
-              <span>Acesso imediato a todas funcionalidades</span>
+              <span>Dados isolados por CNPJ</span>
             </div>
             <div className="flex items-center gap-3 text-sidebar-foreground/70">
               <div className="w-2 h-2 rounded-full bg-primary" />
@@ -138,7 +164,7 @@ export default function Cadastro() {
               </div>
               <h1 className="text-3xl font-bold">TechFix</h1>
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Criar conta</h2>
+            <h2 className="text-2xl font-bold text-foreground">Cadastrar empresa</h2>
             <p className="mt-2 text-muted-foreground">
               Preencha os dados para começar a usar o sistema
             </p>
@@ -146,7 +172,40 @@ export default function Cadastro() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Seu nome</Label>
+              <Label htmlFor="cnpj">CNPJ da Empresa *</Label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="cnpj"
+                  type="text"
+                  placeholder="00.000.000/0000-00"
+                  value={formData.cnpj}
+                  onChange={(e) => handleChange('cnpj', e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">O CNPJ será usado para identificar sua empresa no sistema</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Nome da Empresa *</Label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="companyName"
+                  type="text"
+                  placeholder="TechFix Assistência"
+                  value={formData.companyName}
+                  onChange={(e) => handleChange('companyName', e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Seu nome *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -162,22 +221,7 @@ export default function Cadastro() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="companyName">Nome da empresa</Label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="companyName"
-                  type="text"
-                  placeholder="TechFix Assistência"
-                  value={formData.companyName}
-                  onChange={(e) => handleChange('companyName', e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">E-mail *</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -193,7 +237,7 @@ export default function Cadastro() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Senha *</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -218,7 +262,7 @@ export default function Cadastro() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar senha</Label>
+              <Label htmlFor="confirmPassword">Confirmar senha *</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -234,7 +278,7 @@ export default function Cadastro() {
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? 'Criando conta...' : 'Criar conta'}
+              {loading ? 'Criando conta...' : 'Cadastrar empresa'}
             </Button>
           </form>
 

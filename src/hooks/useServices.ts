@@ -9,31 +9,32 @@ export type ServiceInsert = TablesInsert<'services'>;
 export type ServiceUpdate = TablesUpdate<'services'>;
 
 export function useServices() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: services = [], isLoading, error } = useQuery({
-    queryKey: ['services', user?.id],
+    queryKey: ['services', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('services')
         .select('*')
+        .eq('company_id', companyId)
         .order('name', { ascending: true });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createService = useMutation({
-    mutationFn: async (service: Omit<ServiceInsert, 'user_id'>) => {
-      if (!user) throw new Error('Usuário não autenticado');
+    mutationFn: async (service: Omit<ServiceInsert, 'user_id' | 'company_id'>) => {
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       const { data, error } = await supabase
         .from('services')
-        .insert({ ...service, user_id: user.id })
+        .insert({ ...service, user_id: user.id, company_id: companyId })
         .select()
         .single();
       

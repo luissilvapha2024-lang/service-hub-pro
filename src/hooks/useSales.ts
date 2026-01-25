@@ -12,14 +12,14 @@ export type SaleInsert = TablesInsert<'sales'>;
 export type SaleItemInsert = TablesInsert<'sale_items'>;
 
 export function useSales() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: sales = [], isLoading, error } = useQuery({
-    queryKey: ['sales', user?.id],
+    queryKey: ['sales', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('sales')
         .select(`
@@ -27,12 +27,13 @@ export function useSales() {
           client:clients(*),
           sale_items(*)
         `)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data as Sale[];
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createSale = useMutation({
@@ -40,14 +41,14 @@ export function useSales() {
       sale,
       items,
     }: {
-      sale: Omit<SaleInsert, 'user_id'>;
+      sale: Omit<SaleInsert, 'user_id' | 'company_id'>;
       items: Omit<SaleItemInsert, 'sale_id'>[];
     }) => {
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
-        .insert({ ...sale, user_id: user.id })
+        .insert({ ...sale, user_id: user.id, company_id: companyId })
         .select()
         .single();
       
@@ -90,6 +91,7 @@ export function useSales() {
         .from('transactions')
         .insert({
           user_id: user.id,
+          company_id: companyId,
           type: 'entrada',
           category: 'Venda',
           description: `Venda #${saleData.sale_number}`,

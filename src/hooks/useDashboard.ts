@@ -44,25 +44,26 @@ const statusLabels: Record<string, string> = {
 };
 
 export function useDashboard() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['dashboard', user?.id],
+    queryKey: ['dashboard', companyId],
     queryFn: async (): Promise<DashboardData> => {
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
 
       const today = new Date();
       const startOfToday = startOfDay(today).toISOString();
       const endOfToday = endOfDay(today).toISOString();
       const startOfThisMonth = startOfMonth(today).toISOString();
 
-      // Fetch all service orders
+      // Fetch all service orders for the company
       const { data: orders, error: ordersError } = await supabase
         .from('service_orders')
         .select(`
           *,
           client:clients(name)
         `)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -71,6 +72,7 @@ export function useDashboard() {
       const { data: transactionsToday, error: transTodayError } = await supabase
         .from('transactions')
         .select('*')
+        .eq('company_id', companyId)
         .eq('type', 'entrada')
         .gte('created_at', startOfToday)
         .lte('created_at', endOfToday);
@@ -80,6 +82,7 @@ export function useDashboard() {
       const { data: transactionsMonth, error: transMonthError } = await supabase
         .from('transactions')
         .select('*')
+        .eq('company_id', companyId)
         .eq('type', 'entrada')
         .gte('created_at', startOfThisMonth);
 
@@ -88,17 +91,25 @@ export function useDashboard() {
       const { data: expensesMonth, error: expensesError } = await supabase
         .from('transactions')
         .select('*')
+        .eq('company_id', companyId)
         .eq('type', 'saida')
         .gte('created_at', startOfThisMonth);
 
       if (expensesError) throw expensesError;
 
-      // Fetch order services for most performed services
-      const { data: orderServices, error: orderServicesError } = await supabase
-        .from('order_services')
-        .select('service_name');
+      // Fetch order services for most performed services (from company's orders)
+      const orderIds = orders?.map(o => o.id) || [];
+      let orderServices: { service_name: string }[] = [];
+      
+      if (orderIds.length > 0) {
+        const { data: osData, error: orderServicesError } = await supabase
+          .from('order_services')
+          .select('service_name')
+          .in('order_id', orderIds);
 
-      if (orderServicesError) throw orderServicesError;
+        if (orderServicesError) throw orderServicesError;
+        orderServices = osData || [];
+      }
 
       // Fetch sales for last 7 days
       const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -112,6 +123,7 @@ export function useDashboard() {
       const { data: salesData, error: salesError } = await supabase
         .from('transactions')
         .select('created_at, amount')
+        .eq('company_id', companyId)
         .eq('type', 'entrada')
         .gte('created_at', last7Days[0].date);
 
@@ -193,7 +205,7 @@ export function useDashboard() {
         ultimasOS,
       };
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   return {

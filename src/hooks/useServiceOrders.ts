@@ -25,14 +25,14 @@ export const statusConfig: Record<OrderStatus, { label: string; color: string; b
 };
 
 export function useServiceOrders() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: orders = [], isLoading, error } = useQuery({
-    queryKey: ['service_orders', user?.id],
+    queryKey: ['service_orders', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('service_orders')
         .select(`
@@ -43,12 +43,13 @@ export function useServiceOrders() {
             service:services(*)
           )
         `)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data as ServiceOrder[];
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createOrder = useMutation({
@@ -56,14 +57,14 @@ export function useServiceOrders() {
       order,
       services,
     }: {
-      order: Omit<ServiceOrderInsert, 'user_id'>;
+      order: Omit<ServiceOrderInsert, 'user_id' | 'company_id'>;
       services: { service_id: string; service_name: string; price: number; quantity: number }[];
     }) => {
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       
       const { data: orderData, error: orderError } = await supabase
         .from('service_orders')
-        .insert({ ...order, user_id: user.id })
+        .insert({ ...order, user_id: user.id, company_id: companyId })
         .select()
         .single();
       

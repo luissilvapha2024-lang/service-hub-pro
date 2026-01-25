@@ -9,31 +9,32 @@ export type TransactionInsert = TablesInsert<'transactions'>;
 export type TransactionType = Enums<'transaction_type'>;
 
 export function useTransactions() {
-  const { user } = useAuth();
+  const { user, companyId } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: transactions = [], isLoading, error } = useQuery({
-    queryKey: ['transactions', user?.id],
+    queryKey: ['transactions', companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !companyId) return [];
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const createTransaction = useMutation({
-    mutationFn: async (transaction: Omit<TransactionInsert, 'user_id'>) => {
-      if (!user) throw new Error('Usuário não autenticado');
+    mutationFn: async (transaction: Omit<TransactionInsert, 'user_id' | 'company_id'>) => {
+      if (!user || !companyId) throw new Error('Usuário não autenticado');
       const { data, error } = await supabase
         .from('transactions')
-        .insert({ ...transaction, user_id: user.id })
+        .insert({ ...transaction, user_id: user.id, company_id: companyId })
         .select()
         .single();
       
