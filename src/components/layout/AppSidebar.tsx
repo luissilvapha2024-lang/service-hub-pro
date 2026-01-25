@@ -28,15 +28,15 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Users, label: 'Clientes', path: '/clientes' },
-  { icon: Wrench, label: 'Serviços', path: '/servicos' },
-  { icon: Package, label: 'Produtos', path: '/produtos' },
-  { icon: ClipboardList, label: 'Ordens de Serviço', path: '/ordens' },
-  { icon: ShoppingCart, label: 'PDV', path: '/pdv' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permissionKey: 'ver_dashboard' },
+  { icon: Users, label: 'Clientes', path: '/clientes', permissionKey: 'ver_clientes' },
+  { icon: Wrench, label: 'Serviços', path: '/servicos', permissionKey: 'ver_servicos' },
+  { icon: Package, label: 'Produtos', path: '/produtos', permissionKey: 'ver_produtos' },
+  { icon: ClipboardList, label: 'Ordens de Serviço', path: '/ordens', permissionKey: 'ver_ordens_servico' },
+  { icon: ShoppingCart, label: 'PDV', path: '/pdv', permissionKey: 'ver_pdv' },
   { icon: DollarSign, label: 'Financeiro', path: '/financeiro', permissionKey: 'ver_financeiro' },
   { icon: BarChart3, label: 'Relatórios', path: '/relatorios', permissionKey: 'ver_relatorios' },
-  { icon: Settings, label: 'Configurações', path: '/configuracoes' },
+  { icon: Settings, label: 'Configurações', path: '/configuracoes', permissionKey: 'ver_configuracoes' },
 ];
 
 export function AppSidebar() {
