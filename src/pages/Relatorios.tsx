@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mockDashboardData, mockClientes } from '@/data/mockData';
 import {
@@ -41,6 +41,9 @@ import { exportToPDF } from '@/utils/exportPDF';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useClients } from '@/hooks/useClients';
+import { useServices } from '@/hooks/useServices';
+import { Badge } from '@/components/ui/badge';
 
 const periodLabels: Record<string, string> = {
   semana: 'Esta semana',
@@ -54,7 +57,30 @@ export default function Relatorios() {
   const [period, setPeriod] = useState('mes');
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [selectedClientId, setSelectedClientId] = useState<string>('all');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('all');
   const { toast } = useToast();
+
+  const { clients } = useClients();
+  const { services } = useServices();
+
+  // Get unique services (remove duplicates by name)
+  const uniqueServices = useMemo(() => {
+    const seen = new Set<string>();
+    return services.filter(service => {
+      if (seen.has(service.name)) return false;
+      seen.add(service.name);
+      return true;
+    });
+  }, [services]);
+
+  // Check if any filter is active
+  const hasActiveFilters = selectedClientId !== 'all' || selectedServiceId !== 'all';
+
+  const clearFilters = () => {
+    setSelectedClientId('all');
+    setSelectedServiceId('all');
+  };
 
   // Update date range when period changes
   const handlePeriodChange = (value: string) => {
@@ -286,6 +312,74 @@ export default function Relatorios() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Filters Row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">Filtros:</span>
+        </div>
+
+        <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+          <SelectTrigger className="w-[180px]">
+            <Users className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Todos os clientes" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border z-50">
+            <SelectItem value="all">Todos os clientes</SelectItem>
+            {clients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                {client.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+          <SelectTrigger className="w-[180px]">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Todos os serviços" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border z-50">
+            <SelectItem value="all">Todos os serviços</SelectItem>
+            {uniqueServices.map((service) => (
+              <SelectItem key={service.id} value={service.id}>
+                {service.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+            <X className="w-4 h-4 mr-1" />
+            Limpar filtros
+          </Button>
+        )}
+
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 ml-2">
+            {selectedClientId !== 'all' && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                Cliente: {clients.find(c => c.id === selectedClientId)?.name}
+                <X 
+                  className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setSelectedClientId('all')}
+                />
+              </Badge>
+            )}
+            {selectedServiceId !== 'all' && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                Serviço: {uniqueServices.find(s => s.id === selectedServiceId)?.name}
+                <X 
+                  className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setSelectedServiceId('all')}
+                />
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Charts Grid */}
