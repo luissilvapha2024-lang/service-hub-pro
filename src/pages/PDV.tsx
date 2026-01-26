@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
@@ -7,6 +7,7 @@ import { useServiceOrders } from '@/hooks/useServiceOrders';
 import { useSales } from '@/hooks/useSales';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCashRegister } from '@/hooks/useCashRegister';
 import { printReceipt } from '@/utils/printReceipt';
 import {
   Popover,
@@ -16,6 +17,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { CashRegisterControls } from '@/components/pdv/CashRegisterControls';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface CartItem {
   id: string;
@@ -51,9 +54,25 @@ export default function PDV() {
 
   const { products, isLoading: productsLoading } = useProducts();
   const { orders, isLoading: ordersLoading, updateOrderStatus } = useServiceOrders();
-  const { createSale } = useSales();
+  const { createSale, sales } = useSales();
   const { clients } = useClients();
   const { profile } = useAuth();
+  const { isCashOpen, isPreviousDaySessionOpen, isLoading: cashLoading, currentSession } = useCashRegister();
+
+  // Calculate today's cash sales total (only cash payments)
+  const todayCashSalesTotal = useMemo(() => {
+    if (!currentSession) return 0;
+    
+    const sessionStart = new Date(currentSession.opened_at);
+    return sales
+      .filter(sale => {
+        const saleDate = new Date(sale.created_at);
+        const paymentMethod = sale.payment_method.toLowerCase();
+        // Only count cash sales (dinheiro) made after session started
+        return saleDate >= sessionStart && paymentMethod.includes('dinheiro');
+      })
+      .reduce((acc, sale) => acc + Number(sale.total), 0);
+  }, [sales, currentSession]);
 
   // Filtrar apenas OS com status "entregue" (prontas para pagamento)
   const deliveredOrders = orders.filter(order => order.status === 'entregue');
@@ -219,7 +238,10 @@ export default function PDV() {
     { id: 'debito', label: 'Débito', icon: CreditCard },
   ];
 
-  const isLoading = productsLoading || ordersLoading;
+  const isLoading = productsLoading || ordersLoading || cashLoading;
+
+  // Check if sales are blocked
+  const salesBlocked = !isCashOpen;
 
   if (isLoading) {
     return (
@@ -539,6 +561,9 @@ export default function PDV() {
 
         {/* Right Column - Payment */}
         <div className="w-72 flex flex-col gap-4">
+          {/* Cash Register Controls */}
+          <CashRegisterControls salesTotal={todayCashSalesTotal} />
+
           {/* Payment Method */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1">
             <PanelHeader icon={CreditCard}>Pagamento</PanelHeader>
@@ -637,20 +662,36 @@ export default function PDV() {
           </div>
 
           {/* Total and Checkout */}
-          <div className="bg-primary rounded-lg shadow-soft overflow-hidden mt-auto">
+          <div className={cn(
+            "rounded-lg shadow-soft overflow-hidden mt-auto",
+            salesBlocked ? "bg-muted" : "bg-primary"
+          )}>
             <div className="p-4 text-center">
-              <span className="text-primary-foreground/80 text-sm uppercase font-medium">Total</span>
-              <p className="text-3xl font-bold text-primary-foreground">{formatCurrency(total)}</p>
+              <span className={cn(
+                "text-sm uppercase font-medium",
+                salesBlocked ? "text-muted-foreground" : "text-primary-foreground/80"
+              )}>Total</span>
+              <p className={cn(
+                "text-3xl font-bold",
+                salesBlocked ? "text-muted-foreground" : "text-primary-foreground"
+              )}>{formatCurrency(total)}</p>
             </div>
-            <Button 
-              className="w-full rounded-none h-12 text-base font-bold bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || !paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
-            >
-              {createSale.isPending && <Loader2 className="w-5 h-5 mr-2 animate-spin" />}
-              <Receipt className="w-5 h-5 mr-2" />
-              Finalizar Venda
-            </Button>
+            {salesBlocked ? (
+              <div className="w-full h-12 flex items-center justify-center gap-2 bg-warning/20 text-warning-foreground">
+                <Lock className="w-5 h-5" />
+                <span className="font-medium">Abra o caixa para vender</span>
+              </div>
+            ) : (
+              <Button 
+                className="w-full rounded-none h-12 text-base font-bold bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
+                onClick={handleCheckout}
+                disabled={cart.length === 0 || !paymentMethod || (splitPayment && (!secondPaymentMethod || firstPaymentAmount <= 0 || firstPaymentAmount >= total)) || createSale.isPending}
+              >
+                {createSale.isPending && <Loader2 className="w-5 h-5 mr-2 animate-spin" />}
+                <Receipt className="w-5 h-5 mr-2" />
+                Finalizar Venda
+              </Button>
+            )}
           </div>
         </div>
       </div>
