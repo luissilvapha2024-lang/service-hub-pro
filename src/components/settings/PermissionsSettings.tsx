@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Info, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePermissions, PermissionKey, AppRole } from '@/hooks/usePermissions';
@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface PermissionConfig {
   key: PermissionKey;
@@ -48,20 +49,19 @@ const permissionConfig: PermissionConfig[] = [
 
 const roles: { key: AppRole; label: string; color: string }[] = [
   { key: 'admin', label: 'Administrador', color: 'bg-primary/10 text-primary' },
-  { key: 'tecnico', label: 'Técnico', color: 'bg-blue-500/10 text-blue-600' },
-  { key: 'caixa', label: 'Caixa', color: 'bg-emerald-500/10 text-emerald-600' },
+  { key: 'tecnico', label: 'Técnico', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  { key: 'caixa', label: 'Caixa', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
 ];
 
 export function PermissionsSettings() {
   const { getPermission, updatePermission, isLoading } = usePermissions();
+  const { toast } = useToast();
   const [localPermissions, setLocalPermissions] = useState<Record<string, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize local permissions from database
-  useEffect(() => {
-    if (isLoading) return;
-    
+  // Memoize the function to get initial permissions
+  const getInitialPermissions = useCallback(() => {
     const initial: Record<string, boolean> = {};
     permissionConfig.forEach(perm => {
       roles.forEach(role => {
@@ -69,9 +69,15 @@ export function PermissionsSettings() {
         initial[key] = getPermission(perm.key, role.key);
       });
     });
-    setLocalPermissions(initial);
+    return initial;
+  }, [getPermission]);
+
+  // Initialize local permissions from database
+  useEffect(() => {
+    if (isLoading) return;
+    setLocalPermissions(getInitialPermissions());
     setHasChanges(false);
-  }, [getPermission, isLoading]);
+  }, [isLoading, getInitialPermissions]);
 
   const handleToggle = (permKey: PermissionKey, roleKey: AppRole) => {
     const key = `${permKey}_${roleKey}`;
@@ -104,20 +110,23 @@ export function PermissionsSettings() {
 
       await Promise.all(updates);
       setHasChanges(false);
+      toast({
+        title: 'Permissões salvas',
+        description: 'As alterações foram aplicadas a todos os usuários da empresa.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível salvar as permissões. Tente novamente.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleReset = () => {
-    const initial: Record<string, boolean> = {};
-    permissionConfig.forEach(perm => {
-      roles.forEach(role => {
-        const key = `${perm.key}_${role.key}`;
-        initial[key] = getPermission(perm.key, role.key);
-      });
-    });
-    setLocalPermissions(initial);
+    setLocalPermissions(getInitialPermissions());
     setHasChanges(false);
   };
 
@@ -132,93 +141,11 @@ export function PermissionsSettings() {
   const accessPermissions = permissionConfig.filter(p => p.category === 'acesso');
   const actionPermissions = permissionConfig.filter(p => p.category === 'acoes');
 
-  const PermissionCell = ({ permKey, roleKey }: { permKey: PermissionKey; roleKey: AppRole }) => {
-    const key = `${permKey}_${roleKey}`;
-    const isEnabled = localPermissions[key] ?? false;
-    
-    return (
-      <button
-        onClick={() => handleToggle(permKey, roleKey)}
-        className={cn(
-          "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
-          "hover:scale-110 active:scale-95 border-2",
-          isEnabled 
-            ? "bg-primary/15 border-primary text-primary hover:bg-primary/25" 
-            : "bg-muted/50 border-muted-foreground/20 text-muted-foreground/50 hover:bg-muted"
-        )}
-        title={isEnabled ? 'Permitido' : 'Negado'}
-      >
-        {isEnabled ? (
-          <Check className="w-5 h-5" />
-        ) : (
-          <X className="w-5 h-5" />
-        )}
-      </button>
-    );
-  };
-
-  const PermissionTable = ({ permissions, title }: { permissions: PermissionConfig[]; title: string }) => (
-    <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-        {title}
-      </h4>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left pb-4 pr-4 font-medium text-foreground min-w-[200px]">
-                Permissão
-              </th>
-              {roles.map(role => (
-                <th key={role.key} className="pb-4 px-2 text-center">
-                  <span className={cn(
-                    "inline-flex px-3 py-1.5 rounded-full text-xs font-medium",
-                    role.color
-                  )}>
-                    {role.label}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {permissions.map((perm) => (
-              <tr key={perm.key} className="group">
-                <td className="py-4 pr-4">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground">{perm.label}</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{perm.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </td>
-                {roles.map(role => (
-                  <td key={role.key} className="py-4 px-2">
-                    <div className="flex justify-center">
-                      <PermissionCell permKey={perm.key} roleKey={role.key} />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       {/* Header Card */}
       <div className="bg-card rounded-xl border p-6 shadow-soft">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Controle de Permissões</h3>
             <p className="text-sm text-muted-foreground mt-1">
@@ -241,7 +168,7 @@ export function PermissionsSettings() {
       </div>
 
       {/* Legend */}
-      <div className="bg-muted/30 rounded-lg px-4 py-3 flex items-center gap-6 text-sm">
+      <div className="bg-muted/30 rounded-lg px-4 py-3 flex flex-wrap items-center gap-4 sm:gap-6 text-sm">
         <span className="text-muted-foreground font-medium">Legenda:</span>
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-primary/15 border-2 border-primary flex items-center justify-center">
@@ -255,13 +182,172 @@ export function PermissionsSettings() {
           </div>
           <span className="text-foreground">Negado</span>
         </div>
+        <span className="text-muted-foreground text-xs">(Clique para alternar)</span>
       </div>
 
       {/* Permissions Tables */}
       <div className="bg-card rounded-xl border p-6 shadow-soft space-y-8">
-        <PermissionTable permissions={accessPermissions} title="Acesso a Módulos" />
+        {/* Access Permissions */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Acesso a Módulos
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left pb-4 pr-4 font-medium text-foreground min-w-[200px]">
+                    Permissão
+                  </th>
+                  {roles.map(role => (
+                    <th key={role.key} className="pb-4 px-2 text-center">
+                      <span className={cn(
+                        "inline-flex px-3 py-1.5 rounded-full text-xs font-medium",
+                        role.color
+                      )}>
+                        {role.label}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {accessPermissions.map((perm) => (
+                  <tr key={perm.key} className="group">
+                    <td className="py-4 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">{perm.label}</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="cursor-help">
+                                <Info className="w-4 h-4 text-muted-foreground" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[250px]">
+                              <p>{perm.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </td>
+                    {roles.map(role => {
+                      const key = `${perm.key}_${role.key}`;
+                      const isEnabled = localPermissions[key] ?? false;
+                      
+                      return (
+                        <td key={role.key} className="py-4 px-2">
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(perm.key, role.key)}
+                              className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
+                                "hover:scale-110 active:scale-95 border-2 cursor-pointer",
+                                isEnabled 
+                                  ? "bg-primary/15 border-primary text-primary hover:bg-primary/25" 
+                                  : "bg-muted/50 border-muted-foreground/20 text-muted-foreground/50 hover:bg-muted"
+                              )}
+                              title={isEnabled ? 'Clique para negar' : 'Clique para permitir'}
+                            >
+                              {isEnabled ? (
+                                <Check className="w-5 h-5" />
+                              ) : (
+                                <X className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="border-t border-border" />
-        <PermissionTable permissions={actionPermissions} title="Ações do Sistema" />
+
+        {/* Action Permissions */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Ações do Sistema
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left pb-4 pr-4 font-medium text-foreground min-w-[200px]">
+                    Permissão
+                  </th>
+                  {roles.map(role => (
+                    <th key={role.key} className="pb-4 px-2 text-center">
+                      <span className={cn(
+                        "inline-flex px-3 py-1.5 rounded-full text-xs font-medium",
+                        role.color
+                      )}>
+                        {role.label}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {actionPermissions.map((perm) => (
+                  <tr key={perm.key} className="group">
+                    <td className="py-4 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">{perm.label}</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="cursor-help">
+                                <Info className="w-4 h-4 text-muted-foreground" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[250px]">
+                              <p>{perm.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </td>
+                    {roles.map(role => {
+                      const key = `${perm.key}_${role.key}`;
+                      const isEnabled = localPermissions[key] ?? false;
+                      
+                      return (
+                        <td key={role.key} className="py-4 px-2">
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(perm.key, role.key)}
+                              className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
+                                "hover:scale-110 active:scale-95 border-2 cursor-pointer",
+                                isEnabled 
+                                  ? "bg-primary/15 border-primary text-primary hover:bg-primary/25" 
+                                  : "bg-muted/50 border-muted-foreground/20 text-muted-foreground/50 hover:bg-muted"
+                              )}
+                              title={isEnabled ? 'Clique para negar' : 'Clique para permitir'}
+                            >
+                              {isEnabled ? (
+                                <Check className="w-5 h-5" />
+                              ) : (
+                                <X className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Info Card */}
