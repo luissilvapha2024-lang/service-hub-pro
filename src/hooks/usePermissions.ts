@@ -42,7 +42,7 @@ const rolePermissions: Record<AppRole, PermissionKey[]> = {
 };
 
 export function usePermissions() {
-  const { role } = useAuth();
+  const { role, isLoading } = useAuth();
 
   const hasPermission = (permissionKey: PermissionKey): boolean => {
     if (!role) return false;
@@ -50,7 +50,7 @@ export function usePermissions() {
   };
 
   return {
-    isLoading: false,
+    isLoading: isLoading || role === null,
     hasPermission,
     role,
   };
