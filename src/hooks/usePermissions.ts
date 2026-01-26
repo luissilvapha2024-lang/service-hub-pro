@@ -4,15 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type PermissionKey = 
-  | 'ver_dashboard'
-  | 'ver_clientes'
-  | 'ver_servicos'
-  | 'ver_produtos'
-  | 'ver_ordens_servico'
-  | 'ver_pdv'
   | 'ver_financeiro' 
-  | 'ver_relatorios'
-  | 'ver_configuracoes'
+  | 'ver_relatorios' 
   | 'dar_desconto' 
   | 'excluir_os';
 
@@ -71,15 +64,7 @@ export function usePermissions() {
       return permissionMap[permissionKey]?.[role] ?? true;
     }
     
-    // For non-admin users, check if permission exists and is enabled
-    // Default to true for basic navigation permissions if not set
-    const defaultTruePermissions: PermissionKey[] = [
-      'ver_dashboard', 'ver_clientes', 'ver_servicos', 
-      'ver_produtos', 'ver_ordens_servico', 'ver_pdv', 'ver_configuracoes'
-    ];
-    
-    const defaultValue = defaultTruePermissions.includes(permissionKey);
-    return permissionMap[permissionKey]?.[role] ?? defaultValue;
+    return permissionMap[permissionKey]?.[role] ?? false;
   };
 
   // Update a permission

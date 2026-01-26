@@ -4,15 +4,8 @@ import { usePermissions, PermissionKey } from '@/hooks/usePermissions';
 
 // Routes that require specific permissions
 const routePermissions: Record<string, PermissionKey> = {
-  '/dashboard': 'ver_dashboard',
-  '/clientes': 'ver_clientes',
-  '/servicos': 'ver_servicos',
-  '/produtos': 'ver_produtos',
-  '/ordens': 'ver_ordens_servico',
-  '/pdv': 'ver_pdv',
   '/financeiro': 'ver_financeiro',
   '/relatorios': 'ver_relatorios',
-  '/configuracoes': 'ver_configuracoes',
 };
 
 export function ProtectedRoute() {
@@ -35,14 +28,7 @@ export function ProtectedRoute() {
   // Check if current route requires permission
   const requiredPermission = routePermissions[location.pathname];
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    // Find first accessible route, prioritizing /ordens
-    if (hasPermission('ver_ordens_servico')) {
-      return <Navigate to="/ordens" replace />;
-    }
-    const accessibleRoute = Object.entries(routePermissions).find(
-      ([_, perm]) => hasPermission(perm)
-    );
-    return <Navigate to={accessibleRoute?.[0] || '/login'} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

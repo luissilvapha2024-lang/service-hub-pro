@@ -57,13 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Defer profile fetching with setTimeout to avoid deadlock
         if (session?.user) {
-          // Fetch profile and role in parallel
           setTimeout(() => {
-            Promise.all([
-              fetchProfile(session.user.id),
-              fetchRole(session.user.id)
-            ]);
+            fetchProfile(session.user.id);
+            fetchRole(session.user.id);
           }, 0);
         } else {
           setProfile(null);
@@ -80,14 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Fetch profile and role in parallel
-        Promise.all([
-          fetchProfile(session.user.id),
-          fetchRole(session.user.id)
-        ]).finally(() => setIsLoading(false));
-      } else {
-        setIsLoading(false);
+        fetchProfile(session.user.id);
+        fetchRole(session.user.id);
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -96,30 +90,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, company:companies(*)')
+      .select('*')
       .eq('user_id', userId)
       .single();
     
     if (!error && data) {
-      const { company, ...profileData } = data as any;
+      setProfile(data as Profile);
+      setCompanyId(data.company_id);
       
-      // Verify CNPJ if pending verification exists
-      const pendingCnpj = sessionStorage.getItem('pending_cnpj');
-      if (pendingCnpj && company) {
-        if (company.cnpj !== pendingCnpj) {
-          sessionStorage.removeItem('pending_cnpj');
-          sessionStorage.setItem('login_error', 'Este usuário não está vinculado a esta empresa.');
-          await supabase.auth.signOut();
-          return; // Will trigger auth state change
+      // Fetch company details if company_id exists
+      if (data.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', data.company_id)
+          .single();
+        
+        if (companyData) {
+          setCompany(companyData as Company);
         }
-        sessionStorage.removeItem('pending_cnpj');
-      }
-      
-      setProfile(profileData as Profile);
-      setCompanyId(profileData.company_id);
-      
-      if (company) {
-        setCompany(company as Company);
       }
     }
   };
@@ -138,16 +127,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, cnpj: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanCnpj = cnpj.replace(/\D/g, '');
+      // First, verify that the CNPJ exists and the user belongs to it
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('cnpj', cnpj.replace(/\D/g, ''))
+        .maybeSingle();
       
-      // Store CNPJ in sessionStorage for post-login verification
-      sessionStorage.setItem('pending_cnpj', cleanCnpj);
+      if (companyError) {
+        return { success: false, error: 'Erro ao verificar empresa.' };
+      }
       
-      // Just attempt login - verification happens after
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!companyData) {
+        return { success: false, error: 'CNPJ não encontrado no sistema.' };
+      }
 
+      // Attempt login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
       if (error) {
-        sessionStorage.removeItem('pending_cnpj');
         if (error.message === 'Invalid login credentials') {
           return { success: false, error: 'Email ou senha inválidos.' };
         }
@@ -156,10 +157,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, error: error.message };
       }
+
+      // Verify user belongs to the company
+      if (data.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (!profileData?.company_id || profileData.company_id !== companyData.id) {
+          // User doesn't belong to this company, logout
+          await supabase.auth.signOut();
+          return { success: false, error: 'Este usuário não está vinculado a esta empresa.' };
+        }
+      }
       
       return { success: true };
     } catch (err) {
-      sessionStorage.removeItem('pending_cnpj');
       return { success: false, error: 'Erro ao fazer login. Tente novamente.' };
     }
   };

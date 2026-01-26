@@ -6,36 +6,6 @@ import { usePermissions, PermissionKey, AppRole } from '@/hooks/usePermissions';
 
 const permissionConfig: { key: PermissionKey; label: string; roles: AppRole[] }[] = [
   { 
-    key: 'ver_dashboard', 
-    label: 'Ver Dashboard', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_clientes', 
-    label: 'Ver Clientes', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_servicos', 
-    label: 'Ver Serviços', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_produtos', 
-    label: 'Ver Produtos', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_ordens_servico', 
-    label: 'Ver Ordens de Serviço', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_pdv', 
-    label: 'Ver PDV', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
     key: 'ver_financeiro', 
     label: 'Ver Financeiro', 
     roles: ['admin', 'tecnico', 'caixa'] 
@@ -43,11 +13,6 @@ const permissionConfig: { key: PermissionKey; label: string; roles: AppRole[] }[
   { 
     key: 'ver_relatorios', 
     label: 'Ver Relatórios', 
-    roles: ['admin', 'tecnico', 'caixa'] 
-  },
-  { 
-    key: 'ver_configuracoes', 
-    label: 'Ver Configurações', 
     roles: ['admin', 'tecnico', 'caixa'] 
   },
   { 
@@ -73,12 +38,9 @@ export function PermissionsSettings() {
   const [localPermissions, setLocalPermissions] = useState<Record<string, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize local permissions from database only once when data loads
+  // Initialize local permissions from database
   useEffect(() => {
-    if (isLoading || isInitialized) return;
-    
     const initial: Record<string, boolean> = {};
     permissionConfig.forEach(perm => {
       perm.roles.forEach(role => {
@@ -87,8 +49,7 @@ export function PermissionsSettings() {
       });
     });
     setLocalPermissions(initial);
-    setIsInitialized(true);
-  }, [isLoading, isInitialized, getPermission]);
+  }, [getPermission, isLoading]);
 
   const handleToggle = (permKey: PermissionKey, role: AppRole, checked: boolean) => {
     const key = `${permKey}_${role}`;

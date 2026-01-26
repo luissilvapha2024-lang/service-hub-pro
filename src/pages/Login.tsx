@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Smartphone, Mail, Lock, Eye, EyeOff, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,30 +26,13 @@ export default function Login() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const hasNavigated = useRef(false);
-
-  // Check for post-logout error messages
-  useEffect(() => {
-    const loginError = sessionStorage.getItem('login_error');
-    if (loginError) {
-      sessionStorage.removeItem('login_error');
-      toast({
-        title: 'Erro',
-        description: loginError,
-        variant: 'destructive',
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !hasNavigated.current) {
-      hasNavigated.current = true;
-      navigate('/ordens', { replace: true });
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,15 +65,16 @@ export default function Login() {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      // Don't navigate here - let the useEffect handle it when isAuthenticated changes
+      navigate('/dashboard');
     } else {
       toast({
         title: 'Erro',
         description: result.error || 'Email ou senha inválidos.',
         variant: 'destructive',
       });
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
