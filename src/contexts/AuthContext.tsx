@@ -127,11 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, cnpj: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // First, verify that the CNPJ exists and the user belongs to it
+      const cleanCnpj = cnpj.replace(/\D/g, '');
+      
+      // First, verify that the CNPJ exists and check company access status
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
-        .select('id')
-        .eq('cnpj', cnpj.replace(/\D/g, ''))
+        .select('id, is_active, access_expires_at')
+        .eq('cnpj', cleanCnpj)
         .maybeSingle();
       
       if (companyError) {
@@ -140,6 +142,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!companyData) {
         return { success: false, error: 'CNPJ não encontrado no sistema.' };
+      }
+
+      // Check if company is active
+      if (!companyData.is_active) {
+        return { success: false, error: 'Sua empresa está desativada. Entre em contato com o suporte.' };
+      }
+
+      // Check if company access has expired
+      if (companyData.access_expires_at) {
+        const expiresAt = new Date(companyData.access_expires_at);
+        if (expiresAt < new Date()) {
+          return { success: false, error: 'O acesso da sua empresa expirou. Entre em contato com o suporte.' };
+        }
       }
 
       // Attempt login
