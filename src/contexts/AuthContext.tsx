@@ -57,11 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetching with setTimeout to avoid deadlock
         if (session?.user) {
+          // Fetch profile and role in parallel
           setTimeout(() => {
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
+            Promise.all([
+              fetchProfile(session.user.id),
+              fetchRole(session.user.id)
+            ]);
           }, 0);
         } else {
           setProfile(null);
@@ -78,10 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchRole(session.user.id);
+        // Fetch profile and role in parallel
+        Promise.all([
+          fetchProfile(session.user.id),
+          fetchRole(session.user.id)
+        ]).finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -90,25 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, company:companies(*)')
       .eq('user_id', userId)
       .single();
     
     if (!error && data) {
-      setProfile(data as Profile);
-      setCompanyId(data.company_id);
+      const { company, ...profileData } = data as any;
+      setProfile(profileData as Profile);
+      setCompanyId(profileData.company_id);
       
-      // Fetch company details if company_id exists
-      if (data.company_id) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('id', data.company_id)
-          .single();
-        
-        if (companyData) {
-          setCompany(companyData as Company);
-        }
+      if (company) {
+        setCompany(company as Company);
       }
     }
   };
@@ -127,47 +125,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, cnpj: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // First, verify that the CNPJ exists and the user belongs to it
-      const { data: companyData, error: companyError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('cnpj', cnpj.replace(/\D/g, ''))
-        .maybeSingle();
+      const cleanCnpj = cnpj.replace(/\D/g, '');
       
-      if (companyError) {
+      // Verify CNPJ and attempt login in parallel
+      const [companyResult, loginResult] = await Promise.all([
+        supabase
+          .from('companies')
+          .select('id')
+          .eq('cnpj', cleanCnpj)
+          .maybeSingle(),
+        supabase.auth.signInWithPassword({ email, password })
+      ]);
+      
+      if (companyResult.error) {
+        // Logout if login succeeded but company check failed
+        if (loginResult.data?.user) await supabase.auth.signOut();
         return { success: false, error: 'Erro ao verificar empresa.' };
       }
       
-      if (!companyData) {
+      if (!companyResult.data) {
+        if (loginResult.data?.user) await supabase.auth.signOut();
         return { success: false, error: 'CNPJ não encontrado no sistema.' };
       }
 
-      // Attempt login
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        if (error.message === 'Invalid login credentials') {
+      if (loginResult.error) {
+        if (loginResult.error.message === 'Invalid login credentials') {
           return { success: false, error: 'Email ou senha inválidos.' };
         }
-        if (error.message === 'Email not confirmed') {
+        if (loginResult.error.message === 'Email not confirmed') {
           return { success: false, error: 'Por favor, confirme seu email antes de fazer login.' };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: loginResult.error.message };
       }
 
       // Verify user belongs to the company
-      if (data.user) {
+      if (loginResult.data.user) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('company_id')
-          .eq('user_id', data.user.id)
+          .eq('user_id', loginResult.data.user.id)
           .single();
         
-        if (!profileData?.company_id || profileData.company_id !== companyData.id) {
-          // User doesn't belong to this company, logout
+        if (!profileData?.company_id || profileData.company_id !== companyResult.data.id) {
           await supabase.auth.signOut();
           return { success: false, error: 'Este usuário não está vinculado a esta empresa.' };
         }
