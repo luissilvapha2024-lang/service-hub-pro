@@ -65,7 +65,10 @@ export default function Login() {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      navigate('/dashboard');
+      // Small delay for smooth transition
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 200);
     } else {
       toast({
         title: 'Erro',
