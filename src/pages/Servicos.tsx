@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useServices, type Service } from '@/hooks/useServices';
 import { Switch } from '@/components/ui/switch';
+import { TableSkeleton } from '@/components/ui/page-skeleton';
 import {
   Dialog,
   DialogContent,
@@ -108,11 +109,7 @@ export default function Servicos() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   return (

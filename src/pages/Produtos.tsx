@@ -32,6 +32,7 @@ import { Loader2 } from 'lucide-react';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCSV, formatCurrencyForExport } from '@/utils/exportCSV';
+import { TableSkeleton } from '@/components/ui/page-skeleton';
 
 export default function Produtos() {
   const { products, isLoading, createProduct, updateProduct, deleteProduct } = useProducts();
@@ -252,11 +253,7 @@ export default function Produtos() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   return (

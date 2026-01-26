@@ -3,6 +3,7 @@ import { Plus, Search, Phone, Mail, MapPin, MoreHorizontal, Edit, Trash2, Eye, L
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useClients, type Client } from '@/hooks/useClients';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
 import {
   Dialog,
   DialogContent,
@@ -95,11 +96,7 @@ export default function Clientes() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
