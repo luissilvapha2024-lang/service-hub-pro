@@ -18,10 +18,11 @@ const routePermissions: Record<string, PermissionKey> = {
 
 export function ProtectedRoute() {
   const { isAuthenticated, isLoading, role } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
   const location = useLocation();
 
-  if (isLoading) {
+  // Wait for both auth and permissions to load
+  if (isLoading || permissionsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
