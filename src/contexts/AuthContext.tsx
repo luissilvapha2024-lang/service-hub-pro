@@ -50,6 +50,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<'admin' | 'tecnico' | 'caixa' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Periodic company access check
+  const checkCompanyAccess = async (companyIdToCheck: string): Promise<{ isValid: boolean; reason?: string }> => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('is_active, access_expires_at')
+      .eq('id', companyIdToCheck)
+      .maybeSingle();
+    
+    if (error || !data) {
+      return { isValid: false, reason: 'Erro ao verificar acesso da empresa.' };
+    }
+    
+    if (!data.is_active) {
+      return { isValid: false, reason: 'Sua empresa foi desativada. Entre em contato com o suporte.' };
+    }
+    
+    if (data.access_expires_at) {
+      const expiresAt = new Date(data.access_expires_at);
+      if (expiresAt < new Date()) {
+        return { isValid: false, reason: 'O acesso da sua empresa expirou. Entre em contato com o suporte.' };
+      }
+    }
+    
+    return { isValid: true };
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -86,6 +112,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Periodic company access verification (every 2 minutes)
+  useEffect(() => {
+    if (!companyId || !session) return;
+
+    const verifyAccess = async () => {
+      const { isValid, reason } = await checkCompanyAccess(companyId);
+      
+      if (!isValid) {
+        // Import toast dynamically to avoid circular dependency
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: 'Acesso Bloqueado',
+          description: reason,
+          variant: 'destructive',
+        });
+        
+        // Logout the user
+        await logout();
+      }
+    };
+
+    // Check immediately on mount
+    verifyAccess();
+
+    // Then check every 2 minutes
+    const intervalId = setInterval(verifyAccess, 2 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [companyId, session]);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
