@@ -159,6 +159,11 @@ export function useServiceOrders() {
 
   const updateOrder = useMutation({
     mutationFn: async ({ id, ...updates }: ServiceOrderUpdate & { id: string }) => {
+      // Validate status if it's being updated
+      if (updates.status && !isValidOrderStatus(updates.status)) {
+        throw new Error(`Status inválido: ${updates.status}. Use um dos valores: ${ORDER_STATUS_VALUES.join(', ')}`);
+      }
+      
       const { data, error } = await supabase
         .from('service_orders')
         .update(updates)
