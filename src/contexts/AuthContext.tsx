@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Periodic company access check
-  const checkCompanyAccess = async (companyIdToCheck: string): Promise<{ isValid: boolean; reason?: string }> => {
+  const checkCompanyAccess = async (companyIdToCheck: string): Promise<{ isValid: boolean; reason?: string; expiringInDays?: number }> => {
     const { data, error } = await supabase
       .from('companies')
       .select('is_active, access_expires_at')
@@ -68,8 +68,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (data.access_expires_at) {
       const expiresAt = new Date(data.access_expires_at);
-      if (expiresAt < new Date()) {
+      const now = new Date();
+      
+      if (expiresAt < now) {
         return { isValid: false, reason: 'O acesso da sua empresa expirou. Entre em contato com o suporte.' };
+      }
+      
+      // Check if expiring within 7 days
+      const daysUntilExpiration = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntilExpiration <= 7) {
+        return { isValid: true, expiringInDays: daysUntilExpiration };
       }
     }
     
@@ -117,12 +125,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!companyId || !session) return;
 
+    let expirationWarningShown = false;
+
     const verifyAccess = async () => {
-      const { isValid, reason } = await checkCompanyAccess(companyId);
+      const { isValid, reason, expiringInDays } = await checkCompanyAccess(companyId);
+      const { toast } = await import('@/hooks/use-toast');
       
       if (!isValid) {
-        // Import toast dynamically to avoid circular dependency
-        const { toast } = await import('@/hooks/use-toast');
         toast({
           title: 'Acesso Bloqueado',
           description: reason,
@@ -131,6 +140,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Logout the user
         await logout();
+        return;
+      }
+
+      // Show expiration warning (only once per session)
+      if (expiringInDays !== undefined && !expirationWarningShown) {
+        expirationWarningShown = true;
+        const message = expiringInDays === 1 
+          ? 'O acesso da sua empresa expira amanhã!' 
+          : expiringInDays === 0 
+            ? 'O acesso da sua empresa expira hoje!' 
+            : `O acesso da sua empresa expira em ${expiringInDays} dias.`;
+        
+        toast({
+          title: '⚠️ Aviso de Expiração',
+          description: `${message} Entre em contato com o suporte para renovar.`,
+          variant: 'destructive',
+          duration: 10000,
+        });
       }
     };
 
