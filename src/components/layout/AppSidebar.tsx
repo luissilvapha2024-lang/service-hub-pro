@@ -24,19 +24,19 @@ interface MenuItem {
   icon: typeof LayoutDashboard;
   label: string;
   path: string;
-  permissionKey?: PermissionKey;
+  permissionKey: PermissionKey;
 }
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Users, label: 'Clientes', path: '/clientes' },
-  { icon: Wrench, label: 'Serviços', path: '/servicos' },
-  { icon: Package, label: 'Produtos', path: '/produtos' },
-  { icon: ClipboardList, label: 'Ordens de Serviço', path: '/ordens' },
-  { icon: ShoppingCart, label: 'PDV', path: '/pdv' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permissionKey: 'ver_dashboard' },
+  { icon: Users, label: 'Clientes', path: '/clientes', permissionKey: 'ver_clientes' },
+  { icon: Wrench, label: 'Serviços', path: '/servicos', permissionKey: 'ver_servicos' },
+  { icon: Package, label: 'Produtos', path: '/produtos', permissionKey: 'ver_produtos' },
+  { icon: ClipboardList, label: 'Ordens de Serviço', path: '/ordens', permissionKey: 'ver_ordens_servico' },
+  { icon: ShoppingCart, label: 'PDV', path: '/pdv', permissionKey: 'ver_pdv' },
   { icon: DollarSign, label: 'Financeiro', path: '/financeiro', permissionKey: 'ver_financeiro' },
   { icon: BarChart3, label: 'Relatórios', path: '/relatorios', permissionKey: 'ver_relatorios' },
-  { icon: Settings, label: 'Configurações', path: '/configuracoes' },
+  { icon: Settings, label: 'Configurações', path: '/configuracoes', permissionKey: 'ver_configuracoes' },
 ];
 
 export function AppSidebar() {
@@ -46,11 +46,7 @@ export function AppSidebar() {
   const { logout, profile } = useAuth();
   const { hasPermission } = usePermissions();
 
-  // Filter menu items based on permissions
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!item.permissionKey) return true;
-    return hasPermission(item.permissionKey);
-  });
+  // All menu items are shown, but access is controlled by ProtectedRoute
 
   const handleLogout = async () => {
     await logout();
@@ -81,15 +77,20 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1">
-          {filteredMenuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path || 
+              (item.path === '/ordens' && location.pathname.startsWith('/ordens/'));
+            const hasAccess = hasPermission(item.permissionKey);
+            
             return (
               <li key={item.path}>
                 <NavLink
                   to={item.path}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
-                    'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                    hasAccess 
+                      ? 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      : 'opacity-50 cursor-not-allowed',
                     isActive
                       ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
                       : 'text-sidebar-foreground'

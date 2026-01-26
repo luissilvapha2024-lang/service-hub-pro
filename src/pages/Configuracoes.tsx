@@ -1,9 +1,8 @@
-import { Building, Users, Shield, Database } from 'lucide-react';
+import { Building, Users, Database } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImportMockData } from '@/components/ImportMockData';
 import { UserManagement } from '@/components/settings/UserManagement';
 import { CompanySettings } from '@/components/settings/CompanySettings';
-import { PermissionsSettings } from '@/components/settings/PermissionsSettings';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Configuracoes() {
@@ -28,16 +27,10 @@ export default function Configuracoes() {
             Usuários
           </TabsTrigger>
           {isAdmin && (
-            <>
-              <TabsTrigger value="permissoes" className="gap-2">
-                <Shield className="w-4 h-4" />
-                Permissões
-              </TabsTrigger>
-              <TabsTrigger value="dados" className="gap-2">
-                <Database className="w-4 h-4" />
-                Dados
-              </TabsTrigger>
-            </>
+            <TabsTrigger value="dados" className="gap-2">
+              <Database className="w-4 h-4" />
+              Dados
+            </TabsTrigger>
           )}
         </TabsList>
 
@@ -50,13 +43,6 @@ export default function Configuracoes() {
         <TabsContent value="usuarios">
           <UserManagement />
         </TabsContent>
-
-        {/* Permissões Tab - Only for admins */}
-        {isAdmin && (
-          <TabsContent value="permissoes">
-            <PermissionsSettings />
-          </TabsContent>
-        )}
 
         {/* Dados Tab - Only for admins */}
         {isAdmin && (
