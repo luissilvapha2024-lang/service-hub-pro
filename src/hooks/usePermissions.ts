@@ -4,8 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type PermissionKey = 
+  | 'ver_dashboard'
+  | 'ver_clientes'
+  | 'ver_servicos'
+  | 'ver_produtos'
+  | 'ver_ordens_servico'
+  | 'ver_pdv'
   | 'ver_financeiro' 
-  | 'ver_relatorios' 
+  | 'ver_relatorios'
+  | 'ver_configuracoes'
   | 'dar_desconto' 
   | 'excluir_os';
 
