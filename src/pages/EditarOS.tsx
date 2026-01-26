@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useServiceOrders, statusConfig, type OrderStatus } from '@/hooks/useServiceOrders';
+import { useServiceOrders, statusConfig, ORDER_STATUS_VALUES, type OrderStatus } from '@/hooks/useServiceOrders';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { useAuth } from '@/contexts/AuthContext';
@@ -128,8 +128,11 @@ export default function EditarOS() {
     }
   };
 
-  const handleStatusChange = (newStatus: OrderStatus) => {
-    setFormData({ ...formData, status: newStatus });
+  const handleStatusChange = (newStatus: string) => {
+    // Ensure we always use valid enum values
+    if (ORDER_STATUS_VALUES.includes(newStatus as OrderStatus)) {
+      setFormData({ ...formData, status: newStatus as OrderStatus });
+    }
   };
 
   const formatCurrency = (value: number) => {

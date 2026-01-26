@@ -14,6 +14,17 @@ export type ServiceOrderInsert = TablesInsert<'service_orders'>;
 export type ServiceOrderUpdate = TablesUpdate<'service_orders'>;
 export type OrderStatus = Enums<'order_status'>;
 
+// Valid status values that match the database enum
+export const ORDER_STATUS_VALUES: OrderStatus[] = [
+  'em_analise',
+  'aguardando_autorizacao', 
+  'aguardando_pecas',
+  'em_andamento',
+  'concluido',
+  'entregue',
+  'pago'
+];
+
 export const statusConfig: Record<OrderStatus, { label: string; color: string; bgClass: string }> = {
   em_analise: { label: 'Em Análise', color: 'info', bgClass: 'bg-info/10 text-info' },
   aguardando_autorizacao: { label: 'Aguardando Autorização', color: 'warning', bgClass: 'bg-warning/10 text-warning' },
@@ -22,6 +33,11 @@ export const statusConfig: Record<OrderStatus, { label: string; color: string; b
   concluido: { label: 'Concluído', color: 'success', bgClass: 'bg-success/10 text-success' },
   entregue: { label: 'Entregue', color: 'success', bgClass: 'bg-success/10 text-success' },
   pago: { label: 'Pago', color: 'success', bgClass: 'bg-success/10 text-success' },
+};
+
+// Helper to validate if a string is a valid OrderStatus
+export const isValidOrderStatus = (status: string): status is OrderStatus => {
+  return ORDER_STATUS_VALUES.includes(status as OrderStatus);
 };
 
 export function useServiceOrders() {
@@ -106,6 +122,11 @@ export function useServiceOrders() {
 
   const updateOrderStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
+      // Validate status is a valid enum value
+      if (!isValidOrderStatus(status)) {
+        throw new Error(`Status inválido: ${status}. Use um dos valores: ${ORDER_STATUS_VALUES.join(', ')}`);
+      }
+      
       const { data, error } = await supabase
         .from('service_orders')
         .update({ 

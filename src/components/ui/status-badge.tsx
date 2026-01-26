@@ -1,13 +1,15 @@
 import { cn } from '@/lib/utils';
-import { statusConfig, type OrderStatus } from '@/hooks/useServiceOrders';
+import { statusConfig, isValidOrderStatus, type OrderStatus } from '@/hooks/useServiceOrders';
 
 interface StatusBadgeProps {
-  status: OrderStatus;
+  status: string;
   size?: 'sm' | 'md';
 }
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  // Validate status and get config, fallback to em_analise if invalid
+  const validStatus = isValidOrderStatus(status) ? status : 'em_analise';
+  const config = statusConfig[validStatus];
   
   return (
     <span
