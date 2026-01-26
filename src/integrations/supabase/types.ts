@@ -167,30 +167,36 @@ export type Database = {
       }
       companies: {
         Row: {
+          access_expires_at: string | null
           address: string | null
           cnpj: string
           created_at: string
           id: string
+          is_active: boolean
           logo_url: string | null
           name: string
           phone: string | null
           updated_at: string
         }
         Insert: {
+          access_expires_at?: string | null
           address?: string | null
           cnpj: string
           created_at?: string
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name: string
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          access_expires_at?: string | null
           address?: string | null
           cnpj?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name?: string
           phone?: string | null
@@ -864,9 +870,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_accessible: { Args: { _company_id: string }; Returns: boolean }
+      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "tecnico" | "caixa"
+      app_role: "admin" | "tecnico" | "caixa" | "superadmin"
       order_status:
         | "em_analise"
         | "aguardando_autorizacao"
@@ -1003,7 +1011,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "tecnico", "caixa"],
+      app_role: ["admin", "tecnico", "caixa", "superadmin"],
       order_status: [
         "em_analise",
         "aguardando_autorizacao",
