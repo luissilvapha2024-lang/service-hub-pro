@@ -35,7 +35,10 @@ export function ProtectedRoute() {
   // Check if current route requires permission
   const requiredPermission = routePermissions[location.pathname];
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    // Find first accessible route
+    // Find first accessible route, prioritizing /ordens
+    if (hasPermission('ver_ordens_servico')) {
+      return <Navigate to="/ordens" replace />;
+    }
     const accessibleRoute = Object.entries(routePermissions).find(
       ([_, perm]) => hasPermission(perm)
     );

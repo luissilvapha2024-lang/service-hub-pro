@@ -32,7 +32,7 @@ export default function Login() {
   useEffect(() => {
     if (!isLoading && isAuthenticated && !hasNavigated.current) {
       hasNavigated.current = true;
-      navigate('/dashboard', { replace: true });
+      navigate('/ordens', { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate]);
 
