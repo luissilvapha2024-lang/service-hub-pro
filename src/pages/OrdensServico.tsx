@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Eye, Edit, MoreHorizontal, Filter, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useServiceOrders, statusConfig, type ServiceOrder, type OrderStatus } from '@/hooks/useServiceOrders';
+import { useServiceOrders, statusConfig, ORDER_STATUS_VALUES, type ServiceOrder, type OrderStatus } from '@/hooks/useServiceOrders';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -106,8 +106,11 @@ export default function OrdensServico() {
     setIsDialogOpen(false);
   };
 
-  const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
-    updateOrderStatus.mutate({ id, status: newStatus });
+  const handleUpdateStatus = (id: string, newStatus: string) => {
+    // Ensure we always use valid enum values
+    if (ORDER_STATUS_VALUES.includes(newStatus as OrderStatus)) {
+      updateOrderStatus.mutate({ id, status: newStatus as OrderStatus });
+    }
   };
 
   const formatCurrency = (value: number | null) => {
