@@ -1,8 +1,9 @@
-import { Bell, Search, Moon, Sun, Shield, Wrench, CreditCard } from 'lucide-react';
+import { Search, Moon, Sun, Shield, Wrench, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { cn } from '@/lib/utils';
 
 interface AppHeaderProps {
@@ -17,7 +18,7 @@ const roleConfig = {
 
 export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme();
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
 
   const roleInfo = role ? roleConfig[role] : null;
   const RoleIcon = roleInfo?.icon;
@@ -61,14 +62,7 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
             {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground relative"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-destructive" />
-          </Button>
+          <NotificationsDropdown />
         </div>
       </div>
     </header>
