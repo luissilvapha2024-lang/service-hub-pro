@@ -39,7 +39,8 @@ export default function Login() {
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -47,7 +48,8 @@ export default function Login() {
       hasNavigated.current = true;
       navigate('/ordens', { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
