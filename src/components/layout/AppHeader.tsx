@@ -1,15 +1,26 @@
-import { Bell, Search, Moon, Sun } from 'lucide-react';
+import { Bell, Search, Moon, Sun, Shield, Wrench, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface AppHeaderProps {
   sidebarCollapsed?: boolean;
 }
 
+const roleConfig = {
+  admin: { label: 'Administrador', icon: Shield, color: 'text-primary' },
+  tecnico: { label: 'Técnico', icon: Wrench, color: 'text-info' },
+  caixa: { label: 'Caixa', icon: CreditCard, color: 'text-success' },
+};
+
 export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { role, profile } = useAuth();
+
+  const roleInfo = role ? roleConfig[role] : null;
+  const RoleIcon = roleInfo?.icon;
 
   return (
     <header
@@ -28,24 +39,37 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground relative"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-destructive" />
-        </Button>
+      <div className="flex items-center gap-4">
+        {/* User Role Badge */}
+        {roleInfo && RoleIcon && (
+          <div className={cn(
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50',
+            roleInfo.color
+          )}>
+            <RoleIcon className="w-4 h-4" />
+            <span className="text-sm font-medium">{roleInfo.label}</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground relative"
+          >
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-destructive" />
+          </Button>
+        </div>
       </div>
     </header>
   );

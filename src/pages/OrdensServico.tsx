@@ -9,6 +9,7 @@ import { useServices } from '@/hooks/useServices';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { WhatsAppButton, generateStatusMessage } from '@/components/WhatsAppButton';
 import { useAuth } from '@/contexts/AuthContext';
+import { TableSkeleton } from '@/components/ui/page-skeleton';
 import {
   Dialog,
   DialogContent,
@@ -117,11 +118,7 @@ export default function OrdensServico() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   return (
