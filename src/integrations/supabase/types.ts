@@ -14,6 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          company_id: string | null
+          created_at: string
+          id: string
+          reason: string
+          session_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          session_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          session_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_register_sessions: {
+        Row: {
+          closed_at: string | null
+          closing_balance: number | null
+          company_id: string | null
+          created_at: string
+          difference: number | null
+          expected_balance: number | null
+          id: string
+          notes: string | null
+          opened_at: string
+          opening_balance: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          company_id?: string | null
+          created_at?: string
+          difference?: number | null
+          expected_balance?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_balance?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          closing_balance?: number | null
+          company_id?: string | null
+          created_at?: string
+          difference?: number | null
+          expected_balance?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_balance?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_register_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
