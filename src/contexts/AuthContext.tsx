@@ -102,6 +102,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (!error && data) {
       const { company, ...profileData } = data as any;
+      
+      // Verify CNPJ if pending verification exists
+      const pendingCnpj = sessionStorage.getItem('pending_cnpj');
+      if (pendingCnpj && company) {
+        if (company.cnpj !== pendingCnpj) {
+          sessionStorage.removeItem('pending_cnpj');
+          sessionStorage.setItem('login_error', 'Este usuário não está vinculado a esta empresa.');
+          await supabase.auth.signOut();
+          return; // Will trigger auth state change
+        }
+        sessionStorage.removeItem('pending_cnpj');
+      }
+      
       setProfile(profileData as Profile);
       setCompanyId(profileData.company_id);
       
@@ -127,53 +140,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleanCnpj = cnpj.replace(/\D/g, '');
       
-      // Verify CNPJ and attempt login in parallel
-      const [companyResult, loginResult] = await Promise.all([
-        supabase
-          .from('companies')
-          .select('id')
-          .eq('cnpj', cleanCnpj)
-          .maybeSingle(),
-        supabase.auth.signInWithPassword({ email, password })
-      ]);
+      // Store CNPJ in sessionStorage for post-login verification
+      sessionStorage.setItem('pending_cnpj', cleanCnpj);
       
-      if (companyResult.error) {
-        // Logout if login succeeded but company check failed
-        if (loginResult.data?.user) await supabase.auth.signOut();
-        return { success: false, error: 'Erro ao verificar empresa.' };
-      }
-      
-      if (!companyResult.data) {
-        if (loginResult.data?.user) await supabase.auth.signOut();
-        return { success: false, error: 'CNPJ não encontrado no sistema.' };
-      }
+      // Just attempt login - verification happens after
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (loginResult.error) {
-        if (loginResult.error.message === 'Invalid login credentials') {
+      if (error) {
+        sessionStorage.removeItem('pending_cnpj');
+        if (error.message === 'Invalid login credentials') {
           return { success: false, error: 'Email ou senha inválidos.' };
         }
-        if (loginResult.error.message === 'Email not confirmed') {
+        if (error.message === 'Email not confirmed') {
           return { success: false, error: 'Por favor, confirme seu email antes de fazer login.' };
         }
-        return { success: false, error: loginResult.error.message };
-      }
-
-      // Verify user belongs to the company
-      if (loginResult.data.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('user_id', loginResult.data.user.id)
-          .single();
-        
-        if (!profileData?.company_id || profileData.company_id !== companyResult.data.id) {
-          await supabase.auth.signOut();
-          return { success: false, error: 'Este usuário não está vinculado a esta empresa.' };
-        }
+        return { success: false, error: error.message };
       }
       
       return { success: true };
     } catch (err) {
+      sessionStorage.removeItem('pending_cnpj');
       return { success: false, error: 'Erro ao fazer login. Tente novamente.' };
     }
   };

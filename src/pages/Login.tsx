@@ -28,6 +28,19 @@ export default function Login() {
   const { toast } = useToast();
   const hasNavigated = useRef(false);
 
+  // Check for post-logout error messages
+  useEffect(() => {
+    const loginError = sessionStorage.getItem('login_error');
+    if (loginError) {
+      sessionStorage.removeItem('login_error');
+      toast({
+        title: 'Erro',
+        description: loginError,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated && !hasNavigated.current) {
