@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Smartphone, Mail, Lock, Eye, EyeOff, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,13 @@ export default function Login() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const hasNavigated = useRef(false);
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      navigate('/dashboard');
+    if (!isLoading && isAuthenticated && !hasNavigated.current) {
+      hasNavigated.current = true;
+      navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate]);
 
