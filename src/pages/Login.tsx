@@ -65,16 +65,15 @@ export default function Login() {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      navigate('/dashboard');
+      // Don't navigate here - let the useEffect handle it when isAuthenticated changes
     } else {
       toast({
         title: 'Erro',
         description: result.error || 'Email ou senha inválidos.',
         variant: 'destructive',
       });
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
