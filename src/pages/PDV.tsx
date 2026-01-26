@@ -26,6 +26,17 @@ interface CartItem {
   orderId?: string; // ID da OS quando type === 'order'
 }
 
+function PanelHeader({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ElementType }) {
+  return (
+    <div className="bg-primary px-4 py-2 rounded-t-lg">
+      <h3 className="text-primary-foreground font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4" />}
+        {children}
+      </h3>
+    </div>
+  );
+}
+
 export default function PDV() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -218,14 +229,6 @@ export default function PDV() {
     );
   }
 
-  const PanelHeader = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ElementType }) => (
-    <div className="bg-primary px-4 py-2 rounded-t-lg">
-      <h3 className="text-primary-foreground font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4" />}
-        {children}
-      </h3>
-    </div>
-  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] animate-fade-in">
