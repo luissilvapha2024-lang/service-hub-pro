@@ -858,6 +858,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      company_exists_by_cnpj: { Args: { _cnpj: string }; Returns: boolean }
+      get_company_id_by_cnpj: { Args: { _cnpj: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
