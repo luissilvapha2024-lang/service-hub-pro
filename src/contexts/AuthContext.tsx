@@ -213,12 +213,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cleanCnpj = cnpj.replace(/\D/g, '');
       
       // First, verify that the CNPJ exists and check company access status
-      const { data: companyData, error: companyError } = await supabase
-        .from('companies')
-        .select('id, is_active, access_expires_at')
-        .eq('cnpj', cleanCnpj)
-        .maybeSingle();
-      
+      //const { data: companyData, error: companyError } = await supabase
+      // .from('companies')
+      //  .select('id, is_active, access_expires_at')
+      //  .eq('cnpj', cleanCnpj)
+      //  .maybeSingle();
+
+      const { data: companyData, error: companyError } =
+  await supabase.rpc('login_company_by_cnpj', {
+    p_cnpj: cleanCnpj,
+  });
+
+if (companyError) {
+  return { success: false, error: 'Erro ao verificar empresa.' };
+}
+
+if (!companyData || companyData.length === 0) {
+  return { success: false, error: 'CNPJ não encontrado no sistema.' };
+}
+
+const company = companyData[0];
+
+if (!company.is_active) {
+  return { success: false, error: 'Sua empresa está desativada.' };
+}
+
+if (company.access_expires_at) {
+  const expiresAt = new Date(company.access_expires_at);
+  if (expiresAt < new Date()) {
+    return { success: false, error: 'O acesso da sua empresa expirou.' };
+  }
+}
       if (companyError) {
         return { success: false, error: 'Erro ao verificar empresa.' };
       }
