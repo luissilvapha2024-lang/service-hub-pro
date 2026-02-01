@@ -212,25 +212,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleanCnpj = cnpj.replace(/\D/g, '');
       
-      // First, verify that the CNPJ exists and check company access status
-      //const { data: companyData, error: companyError } = await supabase
-      // .from('companies')
-      //  .select('id, is_active, access_expires_at')
-      //  .eq('cnpj', cleanCnpj)
-      //  .maybeSingle();
+      // First, verify that the CNPJ exists and check company access status using RPC
+      const { data: rpcData, error: rpcError } = await supabase.rpc('login_company_by_cnpj', { p_cnpj: cleanCnpj });
 
-if (!companyData || companyData.length === 0) {
-  return { success: false, error: 'CNPJ não encontrado no sistema.' };
-}
-
-const company = companyData[0];
-//
-
-      
-      if (companyError) {
-        return { success: false, error: 'Erro ao verificar empresa.' };
+      if (rpcError) {
+        console.error('RPC Error:', rpcError);
+        return { success: false, error: 'Erro ao verificar empresa. Tente novamente.' };
       }
       
+      // rpcData will be an array, even if only one row is returned
+      const companyData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+
       if (!companyData) {
         return { success: false, error: 'CNPJ não encontrado no sistema.' };
       }
@@ -266,12 +258,18 @@ const company = companyData[0];
 
       // Verify user belongs to the company
       if (data.user) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('company_id')
           .eq('user_id', data.user.id)
           .single();
         
+        if (profileError) {
+          console.error('Profile fetch error after login:', profileError);
+          await supabase.auth.signOut(); // Ensure logout on profile fetch error
+          return { success: false, error: 'Erro ao carregar perfil do usuário.' };
+        }
+
         if (!profileData?.company_id || profileData.company_id !== companyData.id) {
           // User doesn't belong to this company, logout
           await supabase.auth.signOut();
@@ -280,8 +278,9 @@ const company = companyData[0];
       }
       
       return { success: true };
-    } catch (err) {
-      return { success: false, error: 'Erro ao fazer login. Tente novamente.' };
+    } catch (err: any) {
+      console.error('Login function caught error:', err);
+      return { success: false, error: err.message || 'Erro ao fazer login. Tente novamente.' };
     }
   };
 
