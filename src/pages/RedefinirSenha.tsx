@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Smartphone, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 export default function RedefinirSenha() {
   const [password, setPassword] = useState('');
@@ -14,16 +15,24 @@ export default function RedefinirSenha() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth(); // Use isAuthenticated from AuthContext
 
-  // Verify the recovery token on mount
+  // Effect to clear URL hash after session is processed
   useEffect(() => {
-    const token = searchParams.get('token');
-    const type = searchParams.get('type');
-    
-    if (!token || type !== 'recovery') {
+    // Check if the URL contains Supabase auth tokens in the hash
+    if (window.location.hash.includes('access_token') && window.location.hash.includes('refresh_token')) {
+      // Clear hash from URL to prevent re-processing on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Redirect if not authenticated after initial load and not already successful
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated && !success) {
+      // If AuthContext is done loading and user is not authenticated,
+      // and we are not in a success state, then the recovery link was invalid.
       toast({
         title: 'Link inválido',
         description: 'O link de recuperação é inválido ou expirou.',
@@ -31,11 +40,21 @@ export default function RedefinirSenha() {
       });
       navigate('/login');
     }
-  }, [searchParams, navigate, toast]);
+  }, [isAuthenticated, authLoading, navigate, toast, success]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!isAuthenticated) { // Ensure session is active before attempting to update
+      toast({
+        title: 'Erro de autenticação',
+        description: 'Sessão de recuperação não encontrada. Tente novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!password.trim() || !confirmPassword.trim()) {
       toast({
         title: 'Erro',
@@ -88,6 +107,15 @@ export default function RedefinirSenha() {
       setLoading(false);
     }
   };
+
+  // Show loading state while AuthContext is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (success) {
     return (

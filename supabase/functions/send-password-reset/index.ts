@@ -48,20 +48,21 @@ const handler = async (req: Request): Promise<Response> => {
       type: "recovery",
       email: email,
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: redirectUrl, // This is the URL where the user will be redirected *after* clicking the link in the email
       },
     });
 
     if (resetError) {
-      console.error("Error generating reset link:", resetError);
+      console.error("[send-password-reset] Error generating reset link:", resetError);
       throw new Error("Erro ao gerar link de recuperação");
     }
 
-    if (!data?.properties?.hashed_token) {
-      throw new Error("Token não gerado");
+    if (!data?.properties?.action_link) { // Use action_link
+      console.error("[send-password-reset] Action link not generated:", data);
+      throw new Error("Link de ação não gerado");
     }
 
-    const resetLink = `${redirectUrl}?token=${data.properties.hashed_token}&type=recovery`;
+    const resetLink = data.properties.action_link; // THIS IS THE CRITICAL CHANGE
 
     // Send email using Resend API directly
     const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -121,11 +122,11 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResult = await emailResponse.json();
 
     if (!emailResponse.ok) {
-      console.error("Resend API error:", emailResult);
+      console.error("[send-password-reset] Resend API error:", emailResult);
       throw new Error(emailResult.message || "Erro ao enviar email");
     }
 
-    console.log("Password reset email sent successfully:", emailResult);
+    console.log("[send-password-reset] Password reset email sent successfully:", emailResult);
 
     return new Response(
       JSON.stringify({ success: true, message: "Email enviado com sucesso" }),
@@ -135,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in send-password-reset function:", error);
+    console.error("[send-password-reset] Error in send-password-reset function:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Erro ao enviar email" }),
       {
