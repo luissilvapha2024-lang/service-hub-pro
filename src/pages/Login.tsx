@@ -37,7 +37,12 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!cnpj.trim() || !email.trim() || !password.trim()) {
+    // Sanitização dos inputs
+    const sanitizedEmail = email.trim().toLowerCase().slice(0, 255);
+    const sanitizedCnpj = cnpj.trim();
+    const sanitizedPassword = password;
+    
+    if (!sanitizedCnpj || !sanitizedEmail || !sanitizedPassword) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos.',
@@ -46,7 +51,18 @@ export default function Login() {
       return;
     }
 
-    const cleanCnpj = cnpj.replace(/\D/g, '');
+    // Validação de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, informe um email válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanCnpj = sanitizedCnpj.replace(/\D/g, '');
     if (cleanCnpj.length !== 14) {
       toast({
         title: 'Erro',
@@ -58,7 +74,7 @@ export default function Login() {
     
     setLoading(true);
     
-    const result = await login(email, password, cnpj);
+    const result = await login(sanitizedEmail, sanitizedPassword, sanitizedCnpj);
     
     if (result.success) {
       toast({

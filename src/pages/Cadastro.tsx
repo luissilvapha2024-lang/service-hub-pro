@@ -42,7 +42,17 @@ export default function Cadastro() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim() || !formData.cnpj.trim() || !formData.companyName.trim()) {
+    // Sanitização dos inputs
+    const sanitizedData = {
+      name: formData.name.trim().slice(0, 100),
+      companyName: formData.companyName.trim().slice(0, 150),
+      email: formData.email.trim().toLowerCase().slice(0, 255),
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+      cnpj: formData.cnpj,
+    };
+    
+    if (!sanitizedData.name || !sanitizedData.email || !sanitizedData.password || !sanitizedData.cnpj || !sanitizedData.companyName) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios.',
@@ -51,7 +61,18 @@ export default function Cadastro() {
       return;
     }
 
-    const cleanCnpj = formData.cnpj.replace(/\D/g, '');
+    // Validação de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedData.email)) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, informe um email válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const cleanCnpj = sanitizedData.cnpj.replace(/\D/g, '');
     if (cleanCnpj.length !== 14) {
       toast({
         title: 'Erro',
@@ -61,7 +82,7 @@ export default function Cadastro() {
       return;
     }
     
-    if (formData.password.length < 6) {
+    if (sanitizedData.password.length < 6) {
       toast({
         title: 'Erro',
         description: 'A senha deve ter pelo menos 6 caracteres.',
@@ -70,7 +91,7 @@ export default function Cadastro() {
       return;
     }
     
-    if (formData.password !== formData.confirmPassword) {
+    if (sanitizedData.password !== sanitizedData.confirmPassword) {
       toast({
         title: 'Erro',
         description: 'As senhas não coincidem.',
@@ -82,11 +103,11 @@ export default function Cadastro() {
     setLoading(true);
     
     const result = await register({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      companyName: formData.companyName,
-      cnpj: formData.cnpj,
+      name: sanitizedData.name,
+      email: sanitizedData.email,
+      password: sanitizedData.password,
+      companyName: sanitizedData.companyName,
+      cnpj: sanitizedData.cnpj,
     });
     
     if (result.success) {
@@ -182,6 +203,7 @@ export default function Cadastro() {
                   value={formData.cnpj}
                   onChange={(e) => handleChange('cnpj', e.target.value)}
                   className="pl-10"
+                  maxLength={18}
                   required
                 />
               </div>
@@ -199,6 +221,7 @@ export default function Cadastro() {
                   value={formData.companyName}
                   onChange={(e) => handleChange('companyName', e.target.value)}
                   className="pl-10"
+                  maxLength={150}
                   required
                 />
               </div>
@@ -215,6 +238,7 @@ export default function Cadastro() {
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
                   className="pl-10"
+                  maxLength={100}
                   required
                 />
               </div>
@@ -231,6 +255,7 @@ export default function Cadastro() {
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   className="pl-10"
+                  maxLength={255}
                   required
                 />
               </div>
