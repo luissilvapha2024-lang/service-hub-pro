@@ -19,20 +19,29 @@ export function WhatsAppButton({
   className,
   children,
 }: WhatsAppButtonProps) {
-  // Remove caracteres não numéricos do telefone
-  const cleanPhone = phone.replace(/\D/g, '');
+  // Validação e sanitização do telefone - apenas números permitidos
+  const cleanPhone = phone.replace(/\D/g, '').slice(0, 15); // Max 15 digits
+  
+  // Valida se o telefone tem comprimento mínimo
+  if (cleanPhone.length < 10) {
+    console.warn('WhatsAppButton: Telefone inválido fornecido');
+  }
   
   // Adiciona código do Brasil se não tiver
   const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
   
-  // Codifica a mensagem para URL
-  const encodedMessage = encodeURIComponent(message);
+  // Sanitiza e limita o tamanho da mensagem
+  const sanitizedMessage = message.slice(0, 4096); // WhatsApp URL limit
+  const encodedMessage = encodeURIComponent(sanitizedMessage);
   
-  // Monta a URL do WhatsApp
+  // Monta a URL do WhatsApp de forma segura
   const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
 
   const handleClick = () => {
-    window.open(whatsappUrl, '_blank');
+    // Valida URL antes de abrir
+    if (cleanPhone.length >= 10) {
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
