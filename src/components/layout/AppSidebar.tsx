@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -39,14 +38,16 @@ const menuItems: MenuItem[] = [
   { icon: Settings, label: 'Configurações', path: '/configuracoes', permissionKey: 'ver_configuracoes' },
 ];
 
-export function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+interface AppSidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, profile } = useAuth();
   const { hasPermission } = usePermissions();
-
-  // All menu items are shown, but access is controlled by ProtectedRoute
 
   const handleLogout = async () => {
     await logout();
@@ -129,7 +130,7 @@ export function AppSidebar() {
 
       {/* Toggle Button */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={onToggle}
         className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
       >
         {collapsed ? (
