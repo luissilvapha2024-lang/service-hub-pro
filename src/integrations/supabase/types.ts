@@ -242,6 +242,30 @@ export type Database = {
           },
         ]
       }
+      marketing_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          url: string
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          url: string
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          url?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           company_id: string | null
@@ -875,6 +899,14 @@ export type Database = {
       }
       is_company_accessible: { Args: { _company_id: string }; Returns: boolean }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      login_company_by_cnpj: {
+        Args: { p_cnpj: string }
+        Returns: {
+          access_expires_at: string
+          id: string
+          is_active: boolean
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "tecnico" | "caixa" | "superadmin"

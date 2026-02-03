@@ -213,7 +213,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cleanCnpj = cnpj.replace(/\D/g, '');
       
       // First, verify that the CNPJ exists and check company access status using RPC
-      const { data: rpcData, error: rpcError } = await supabase.rpc('login_company_by_cnpj', { p_cnpj: cleanCnpj });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+        'login_company_by_cnpj', 
+        { p_cnpj: cleanCnpj }
+      ) as { data: { id: string; is_active: boolean; access_expires_at: string | null }[] | null; error: Error | null };
 
       if (rpcError) {
         console.error('RPC Error:', rpcError);
@@ -221,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // rpcData will be an array, even if only one row is returned
-      const companyData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+      const companyData = Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : null;
 
       if (!companyData) {
         return { success: false, error: 'CNPJ não encontrado no sistema.' };
