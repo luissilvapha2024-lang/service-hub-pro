@@ -1091,6 +1091,10 @@ export type Database = {
         Returns: boolean
       }
       is_company_accessible: { Args: { _company_id: string }; Returns: boolean }
+      is_email_associated_with_cnpj: {
+        Args: { _email: string }
+        Returns: boolean
+      }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       login_company_by_cnpj: {
         Args: { p_cnpj: string }
