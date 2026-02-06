@@ -20,7 +20,7 @@ export function AppLayout() {
       <AppHeader sidebarCollapsed={sidebarCollapsed} />
       <main 
         className={cn(
-          "pt-16 p-6 transition-all duration-300",
+          "pt-20 px-6 pb-6 transition-all duration-300",
           sidebarCollapsed ? "ml-16" : "ml-64"
         )}
       >
