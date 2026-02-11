@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Loader2, Instagram, Facebook, Globe } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Loader2, Instagram, Facebook, Globe, Upload, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,9 @@ export function CompanySettings() {
   const { company, companyId } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     cnpj: '',
@@ -32,6 +35,7 @@ export function CompanySettings() {
         facebook: (company as any).facebook || '',
         website: (company as any).website || '',
       });
+      setLogoUrl(company.logo_url || null);
     }
   }, [company]);
 
@@ -56,6 +60,109 @@ export function CompanySettings() {
       .replace(/(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{5})(\d)/, '$1-$2')
       .slice(0, 15);
+  };
+
+  const validateImageDimensions = (file: File): Promise<{ valid: boolean; width: number; height: number }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        const valid = img.width >= 50 && img.width <= 300 && img.height >= 50 && img.height <= 300;
+        resolve({ valid, width: img.width, height: img.height });
+      };
+      img.onerror = () => resolve({ valid: false, width: 0, height: 0 });
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Selecione uma imagem (PNG, JPG, etc).', variant: 'destructive' });
+      return;
+    }
+
+    // Validate dimensions
+    const { valid, width, height } = await validateImageDimensions(file);
+    if (!valid) {
+      toast({
+        title: 'Dimensões inválidas',
+        description: `A imagem tem ${width}x${height}px. O tamanho deve ser entre 50x50 e 300x300 pixels.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${companyId}/logo.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(filePath);
+
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      // Save URL to company record
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({ logo_url: publicUrl })
+        .eq('id', companyId);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
+      toast({ title: 'Logo atualizado', description: 'O logo da empresa foi salvo com sucesso.' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao enviar logo', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!companyId) return;
+    setIsUploadingLogo(true);
+    try {
+      // List and remove files in the company folder
+      const { data: files } = await supabase.storage
+        .from('company-logos')
+        .list(companyId);
+
+      if (files && files.length > 0) {
+        await supabase.storage
+          .from('company-logos')
+          .remove(files.map(f => `${companyId}/${f.name}`));
+      }
+
+      // Clear URL from company record
+      await supabase
+        .from('companies')
+        .update({ logo_url: null })
+        .eq('id', companyId);
+
+      setLogoUrl(null);
+      toast({ title: 'Logo removido', description: 'O logo da empresa foi removido.' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao remover logo', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
 
   const handleSave = async () => {
@@ -102,6 +209,57 @@ export function CompanySettings() {
 
   return (
     <div className="space-y-6">
+      {/* Logo */}
+      <div className="bg-card rounded-xl border p-6 shadow-soft">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Logo da Empresa</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Imagem entre 50x50 e 300x300 pixels. Será exibida na impressão de Ordens de Serviço.
+        </p>
+        <div className="flex items-center gap-6">
+          <div className="w-28 h-28 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo da empresa" className="max-w-full max-h-full object-contain" />
+            ) : (
+              <ImageIcon className="w-10 h-10 text-muted-foreground/50" />
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingLogo}
+            >
+              {isUploadingLogo ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              {logoUrl ? 'Trocar Logo' : 'Enviar Logo'}
+            </Button>
+            {logoUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveLogo}
+                disabled={isUploadingLogo}
+                className="text-destructive hover:text-destructive"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Remover
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-card rounded-xl border p-6 shadow-soft">
         <h3 className="text-lg font-semibold text-foreground mb-6">Dados da Empresa</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

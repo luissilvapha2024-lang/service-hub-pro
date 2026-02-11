@@ -36,7 +36,7 @@ export default function EditarOS() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, company } = useAuth();
   const { orders, updateOrder, updateOrderStatus, isLoading: ordersLoading } = useServiceOrders();
   const { clients } = useClients();
   const { services } = useServices();
@@ -215,6 +215,7 @@ export default function EditarOS() {
               companyName: profile?.company_name || undefined,
               companyPhone: profile?.company_phone || undefined,
               companyAddress: profile?.company_address || undefined,
+              companyLogoUrl: company?.logo_url || undefined,
             })}
           >
             <Printer className="w-4 h-4 mr-2" />

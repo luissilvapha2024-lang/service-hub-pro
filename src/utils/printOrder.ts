@@ -21,6 +21,7 @@ interface PrintOrderData {
   companyName?: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyLogoUrl?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -94,6 +95,7 @@ export function printOrder(data: PrintOrderData): void {
           padding-bottom: 15px;
           border-bottom: 2px solid #000;
         }
+        .company-logo { max-width: 120px; max-height: 120px; margin: 0 auto 10px; display: block; }
         .company-name { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
         .company-info { font-size: 11px; color: #444; }
         .order-title {
@@ -194,6 +196,7 @@ export function printOrder(data: PrintOrderData): void {
     </head>
     <body>
       <div class="header">
+        ${data.companyLogoUrl ? `<img src="${data.companyLogoUrl}" alt="Logo" class="company-logo" />` : ''}
         <div class="company-name">${data.companyName || 'Assistência Técnica'}</div>
         ${data.companyPhone ? `<div class="company-info">Tel: ${data.companyPhone}</div>` : ''}
         ${data.companyAddress ? `<div class="company-info">${data.companyAddress}</div>` : ''}
