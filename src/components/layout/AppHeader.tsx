@@ -1,6 +1,5 @@
-import { Search, Moon, Sun, Shield, Wrench, CreditCard } from 'lucide-react';
+import { Moon, Sun, Shield, Wrench, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
@@ -30,14 +29,7 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
         sidebarCollapsed ? 'left-16' : 'left-64'
       )}
     >
-      {/* Search */}
-      <div className="relative w-96 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar cliente, OS, IMEI..."
-          className="pl-10 bg-background/50 border-border/50 focus:bg-background"
-        />
-      </div>
+      <div />
 
       {/* Actions */}
       <div className="flex items-center gap-4">

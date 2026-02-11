@@ -565,26 +565,45 @@ export default function PDV() {
           <CashRegisterControls salesTotal={todayCashSalesTotal} />
 
           {/* Payment Method */}
-          <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1">
+          <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1 flex flex-col min-h-0">
             <PanelHeader icon={CreditCard}>Pagamento</PanelHeader>
-            <div className="p-3 space-y-3">
-              {/* Payment Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {paymentMethods.map((method) => (
-                  <button
-                    key={method.id}
-                    onClick={() => setPaymentMethod(method.label)}
-                    className={cn(
-                      'flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all text-xs',
-                      paymentMethod === method.label
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-transparent bg-accent/30 hover:bg-accent/60'
-                    )}
-                  >
-                    <method.icon className="w-4 h-4" />
-                    <span className="font-medium">{method.label}</span>
-                  </button>
-                ))}
+            <div className="flex-1 overflow-auto p-3 space-y-3">
+              {/* Primary Payment Method */}
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+                  {splitPayment ? '1ª Forma de Pagamento' : 'Forma de Pagamento'}
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {paymentMethods.map((method) => (
+                    <button
+                      key={method.id}
+                      onClick={() => setPaymentMethod(method.label)}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-xs',
+                        paymentMethod === method.label
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-transparent bg-accent/30 hover:bg-accent/60'
+                      )}
+                    >
+                      <method.icon className="w-5 h-5" />
+                      <span className="font-medium">{method.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {splitPayment && paymentMethod && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Valor:</span>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      max={total - 0.01}
+                      step="0.01"
+                      value={firstPaymentAmount}
+                      onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
+                      className="bg-accent/30 border-0 text-center font-bold h-8 text-sm flex-1"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Discount + Split Row */}
@@ -601,7 +620,7 @@ export default function PDV() {
                   />
                   <span className="text-xs text-muted-foreground">%</span>
                 </div>
-                <label className="flex items-center gap-1 cursor-pointer ml-auto">
+                <label className="flex items-center gap-1.5 cursor-pointer ml-auto">
                   <input
                     type="checkbox"
                     checked={splitPayment}
@@ -614,47 +633,34 @@ export default function PDV() {
                         setFirstPaymentAmount(0);
                       }
                     }}
-                    className="h-3 w-3 rounded border-border accent-primary"
+                    className="h-3.5 w-3.5 rounded border-border accent-primary"
                   />
-                  <span className="text-xs text-muted-foreground">Dividir</span>
+                  <span className="text-xs font-medium text-muted-foreground">Dividir pagamento</span>
                 </label>
               </div>
 
-              {/* Split Payment Details - Compact */}
+              {/* Second Payment Method */}
               {splitPayment && (
-                <div className="bg-muted/50 rounded-md p-2 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">1ª:</span>
-                    <Input
-                      type="number"
-                      min="0.01"
-                      max={total - 0.01}
-                      step="0.01"
-                      value={firstPaymentAmount}
-                      onChange={(e) => setFirstPaymentAmount(Number(e.target.value))}
-                      className="bg-card border-0 text-center font-bold h-6 text-xs flex-1"
-                    />
-                    <span className="text-xs text-muted-foreground">= {formatCurrency(total - firstPaymentAmount)}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground mb-1 block">2ª Forma:</span>
-                    <div className="grid grid-cols-2 gap-1">
-                      {paymentMethods.map((method) => (
-                        <button
-                          key={`second-${method.id}`}
-                          onClick={() => setSecondPaymentMethod(method.label)}
-                          className={cn(
-                            'flex items-center justify-center gap-1 p-1.5 rounded text-xs transition-all',
-                            secondPaymentMethod === method.label
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-card hover:bg-accent/60'
-                          )}
-                        >
-                          <method.icon className="w-3 h-3" />
-                          <span className="font-medium">{method.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                <div className="border-t pt-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+                    2ª Forma de Pagamento — {formatCurrency(total - firstPaymentAmount)}
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={`second-${method.id}`}
+                        onClick={() => setSecondPaymentMethod(method.label)}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-xs',
+                          secondPaymentMethod === method.label
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-transparent bg-accent/30 hover:bg-accent/60'
+                        )}
+                      >
+                        <method.icon className="w-5 h-5" />
+                        <span className="font-medium">{method.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
