@@ -170,16 +170,19 @@ export function CompanySettings() {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('companies')
-        .update({
+      const updateData: Record<string, any> = {
           name: formData.name,
           phone: formData.phone.replace(/\D/g, ''),
           address: formData.address,
-          instagram: formData.instagram,
-          facebook: formData.facebook,
-          website: formData.website,
-        } as any)
+        };
+        // Only include social fields if they have values
+        if (formData.instagram) updateData.instagram = formData.instagram;
+        if (formData.facebook) updateData.facebook = formData.facebook;
+        if (formData.website) updateData.website = formData.website;
+
+      const { error } = await supabase
+        .from('companies')
+        .update(updateData as any)
         .eq('id', companyId);
 
       if (error) throw error;

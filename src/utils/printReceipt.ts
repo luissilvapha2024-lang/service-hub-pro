@@ -18,6 +18,7 @@ interface ReceiptData {
   companyName?: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyLogoUrl?: string;
 }
 
 export function printReceipt(data: ReceiptData): void {
@@ -89,6 +90,7 @@ export function printReceipt(data: ReceiptData): void {
           padding-bottom: 10px;
           border-bottom: 2px dashed #000;
         }
+        .company-logo { max-width: 80px; max-height: 80px; margin: 0 auto 8px; display: block; }
         .company-name {
           font-size: 16px;
           font-weight: bold;
@@ -157,6 +159,7 @@ export function printReceipt(data: ReceiptData): void {
     </head>
     <body>
       <div class="header">
+        ${data.companyLogoUrl ? `<img src="${data.companyLogoUrl}" alt="Logo" class="company-logo" />` : ''}
         <div class="company-name">${data.companyName || 'Assistência Técnica'}</div>
         ${data.companyPhone ? `<div class="company-info">Tel: ${data.companyPhone}</div>` : ''}
         ${data.companyAddress ? `<div class="company-info">${data.companyAddress}</div>` : ''}
