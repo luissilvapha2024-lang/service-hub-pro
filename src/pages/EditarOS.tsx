@@ -470,6 +470,29 @@ export default function EditarOS() {
                 currentStatus={formData.status}
                 companyName={profile?.company_name || undefined}
                 buildMessage={buildMessage}
+                onPrintOS={() => printOrder({
+                  orderNumber: order.order_number,
+                  createdAt: order.created_at,
+                  clientName: order.client?.name,
+                  clientPhone: order.client?.phone,
+                  deviceModel: formData.device_model,
+                  deviceImei: formData.device_imei || undefined,
+                  reportedIssue: formData.reported_issue,
+                  diagnosis: formData.diagnosis || undefined,
+                  observations: formData.observations || undefined,
+                  status: formData.status,
+                  estimatedValue: formData.estimated_value || undefined,
+                  finalValue: formData.final_value || undefined,
+                  services: order.order_services?.map(s => ({
+                    service_name: s.service_name,
+                    price: Number(s.price),
+                    quantity: s.quantity,
+                  })),
+                  companyName: profile?.company_name || undefined,
+                  companyPhone: profile?.company_phone || undefined,
+                  companyAddress: profile?.company_address || undefined,
+                  companyLogoUrl: company?.logo_url || undefined,
+                })}
               />
             )}
 

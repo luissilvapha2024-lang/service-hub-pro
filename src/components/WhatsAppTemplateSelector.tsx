@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Send, ChevronDown, Eye, MessageCircle } from 'lucide-react';
+import { Send, ChevronDown, Eye, MessageCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -26,6 +28,7 @@ interface WhatsAppTemplateSelectorProps {
     deviceModel: string,
     companyName?: string
   ) => string;
+  onPrintOS?: () => void;
 }
 
 export function WhatsAppTemplateSelector({
@@ -36,11 +39,19 @@ export function WhatsAppTemplateSelector({
   currentStatus,
   companyName,
   buildMessage,
+  onPrintOS,
 }: WhatsAppTemplateSelectorProps) {
   const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
   const [showPreview, setShowPreview] = useState(false);
+  const [sendOS, setSendOS] = useState(false);
 
   const message = buildMessage(selectedStatus, clientName, orderNumber, deviceModel, companyName);
+
+  const handleSend = () => {
+    if (sendOS && onPrintOS) {
+      onPrintOS();
+    }
+  };
 
   return (
     <div className="bg-card rounded-xl border p-6 shadow-soft space-y-4">
@@ -80,6 +91,20 @@ export function WhatsAppTemplateSelector({
         </Select>
       </div>
 
+      {onPrintOS && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="send-os"
+            checked={sendOS}
+            onCheckedChange={(checked) => setSendOS(checked === true)}
+          />
+          <Label htmlFor="send-os" className="text-sm cursor-pointer flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" />
+            Enviar OS na mensagem
+          </Label>
+        </div>
+      )}
+
       <Button
         type="button"
         variant="ghost"
@@ -102,15 +127,17 @@ export function WhatsAppTemplateSelector({
         </div>
       )}
 
-      <WhatsAppButton
-        phone={phone}
-        message={message}
-        variant="success"
-        className="w-full"
-      >
-        <Send className="w-4 h-4 ml-1" />
-        Enviar via WhatsApp
-      </WhatsAppButton>
+      <div onClick={handleSend}>
+        <WhatsAppButton
+          phone={phone}
+          message={message}
+          variant="success"
+          className="w-full"
+        >
+          <Send className="w-4 h-4 ml-1" />
+          Enviar via WhatsApp
+        </WhatsAppButton>
+      </div>
     </div>
   );
 }
