@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ import { OrderPhotoUpload } from '@/components/OrderPhotoUpload';
 import { useWhatsAppTemplates } from '@/hooks/useWhatsAppTemplates';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { WhatsAppTemplateSelector } from '@/components/WhatsAppTemplateSelector';
+import { printOrder } from '@/utils/printOrder';
 
 interface OrderPhoto {
   id: string;
@@ -189,7 +190,38 @@ export default function EditarOS() {
             </p>
           </div>
         </div>
-        <StatusBadge status={formData.status} />
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => printOrder({
+              orderNumber: order.order_number,
+              createdAt: order.created_at,
+              clientName: order.client?.name,
+              clientPhone: order.client?.phone,
+              deviceModel: formData.device_model,
+              deviceImei: formData.device_imei || undefined,
+              reportedIssue: formData.reported_issue,
+              diagnosis: formData.diagnosis || undefined,
+              observations: formData.observations || undefined,
+              status: formData.status,
+              estimatedValue: formData.estimated_value || undefined,
+              finalValue: formData.final_value || undefined,
+              services: order.order_services?.map(s => ({
+                service_name: s.service_name,
+                price: Number(s.price),
+                quantity: s.quantity,
+              })),
+              companyName: profile?.company_name || undefined,
+              companyPhone: profile?.company_phone || undefined,
+              companyAddress: profile?.company_address || undefined,
+            })}
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir OS
+          </Button>
+          <StatusBadge status={formData.status} />
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
