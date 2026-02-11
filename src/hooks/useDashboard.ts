@@ -24,13 +24,13 @@ export interface DashboardData {
 }
 
 const statusColors: Record<string, string> = {
-  em_analise: '#3B82F6',
+  em_analise: '#6366F1',
   aguardando_autorizacao: '#F59E0B',
-  aguardando_pecas: '#F59E0B',
-  em_andamento: '#0891B2',
+  aguardando_pecas: '#E879A0',
+  em_andamento: '#0EA5E9',
   concluido: '#10B981',
-  entregue: '#10B981',
-  pago: '#10B981',
+  entregue: '#8B5CF6',
+  pago: '#14B8A6',
 };
 
 const statusLabels: Record<string, string> = {
