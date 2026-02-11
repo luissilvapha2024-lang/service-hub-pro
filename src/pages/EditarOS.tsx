@@ -367,17 +367,18 @@ export default function EditarOS() {
                       type="checkbox"
                       checked={formData.serviceIds.includes(servico.id)}
                       onChange={(e) => {
+                        let newIds: string[];
                         if (e.target.checked) {
-                          setFormData({
-                            ...formData,
-                            serviceIds: [...formData.serviceIds, servico.id],
-                          });
+                          newIds = [...formData.serviceIds, servico.id];
                         } else {
-                          setFormData({
-                            ...formData,
-                            serviceIds: formData.serviceIds.filter((id) => id !== servico.id),
-                          });
+                          newIds = formData.serviceIds.filter((id) => id !== servico.id);
                         }
+                        const newCalc = services.filter((s) => newIds.includes(s.id)).reduce((acc, s) => acc + Number(s.price), 0);
+                        setFormData({
+                          ...formData,
+                          serviceIds: newIds,
+                          estimated_value: newCalc,
+                        });
                       }}
                       className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                     />
