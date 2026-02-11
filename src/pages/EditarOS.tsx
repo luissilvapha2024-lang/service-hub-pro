@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,9 +19,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { OrderPhotoUpload } from '@/components/OrderPhotoUpload';
-import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { useWhatsAppTemplates } from '@/hooks/useWhatsAppTemplates';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { WhatsAppTemplateSelector } from '@/components/WhatsAppTemplateSelector';
 
 interface OrderPhoto {
   id: string;
@@ -398,24 +398,15 @@ export default function EditarOS() {
 
             {/* WhatsApp */}
             {order.client?.phone && (
-              <div className="bg-card rounded-xl border p-6 shadow-soft space-y-4">
-                <h3 className="font-semibold text-foreground">Notificar Cliente</h3>
-                <WhatsAppButton
-                  phone={order.client.phone}
-                  message={buildMessage(
-                    formData.status,
-                    order.client.name || 'Cliente',
-                    order.order_number,
-                    formData.device_model,
-                    profile?.company_name || undefined
-                  )}
-                  variant="success"
-                  className="w-full"
-                >
-                  <Send className="w-4 h-4 ml-1" />
-                  Enviar Status
-                </WhatsAppButton>
-              </div>
+              <WhatsAppTemplateSelector
+                phone={order.client.phone}
+                clientName={order.client.name || 'Cliente'}
+                orderNumber={order.order_number}
+                deviceModel={formData.device_model}
+                currentStatus={formData.status}
+                companyName={profile?.company_name || undefined}
+                buildMessage={buildMessage}
+              />
             )}
 
             {/* Actions */}
