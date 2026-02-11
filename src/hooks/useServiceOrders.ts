@@ -40,6 +40,35 @@ export const isValidOrderStatus = (status: string): status is OrderStatus => {
   return ORDER_STATUS_VALUES.includes(status as OrderStatus);
 };
 
+// Status index for ordering
+const STATUS_INDEX: Record<OrderStatus, number> = {
+  em_analise: 0,
+  aguardando_autorizacao: 1,
+  aguardando_pecas: 2,
+  em_andamento: 3,
+  concluido: 4,
+  entregue: 5,
+  pago: 6,
+};
+
+// Locked statuses that cannot go backwards
+const LOCKED_STATUSES: OrderStatus[] = ['concluido', 'entregue', 'pago'];
+
+// Check if a status transition is allowed
+export const isStatusTransitionAllowed = (currentStatus: OrderStatus, newStatus: OrderStatus): boolean => {
+  if (currentStatus === newStatus) return true;
+  // If current status is locked, cannot go to a lower index
+  if (LOCKED_STATUSES.includes(currentStatus)) {
+    return STATUS_INDEX[newStatus] >= STATUS_INDEX[currentStatus];
+  }
+  return true;
+};
+
+// Get allowed statuses from a given current status
+export const getAllowedStatuses = (currentStatus: OrderStatus): OrderStatus[] => {
+  return ORDER_STATUS_VALUES.filter((s) => isStatusTransitionAllowed(currentStatus, s));
+};
+
 export function useServiceOrders() {
   const { user, companyId } = useAuth();
   const { toast } = useToast();

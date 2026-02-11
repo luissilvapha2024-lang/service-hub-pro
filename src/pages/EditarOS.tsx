@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useServiceOrders, statusConfig, ORDER_STATUS_VALUES, type OrderStatus } from '@/hooks/useServiceOrders';
+import { useServiceOrders, statusConfig, ORDER_STATUS_VALUES, type OrderStatus, isStatusTransitionAllowed, getAllowedStatuses } from '@/hooks/useServiceOrders';
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { useAuth } from '@/contexts/AuthContext';
@@ -131,11 +131,14 @@ export default function EditarOS() {
   };
 
   const handleStatusChange = (newStatus: string) => {
-    // Ensure we always use valid enum values
-    if (ORDER_STATUS_VALUES.includes(newStatus as OrderStatus)) {
-      setFormData({ ...formData, status: newStatus as OrderStatus });
-    }
+    if (!ORDER_STATUS_VALUES.includes(newStatus as OrderStatus)) return;
+    if (!order) return;
+    // Validate transition against the original saved status
+    if (!isStatusTransitionAllowed(order.status, newStatus as OrderStatus)) return;
+    setFormData({ ...formData, status: newStatus as OrderStatus });
   };
+
+  const allowedStatuses = order ? getAllowedStatuses(order.status) : ORDER_STATUS_VALUES;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -351,20 +354,26 @@ export default function EditarOS() {
               <h3 className="font-semibold text-foreground">Status</h3>
               
               <div className="space-y-2">
-                {Object.entries(statusConfig).map(([key, config]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleStatusChange(key as OrderStatus)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      formData.status === key
-                        ? config.bgClass + ' font-medium'
-                        : 'hover:bg-muted'
-                    }`}
-                  >
-                    {config.label}
-                  </button>
-                ))}
+                {Object.entries(statusConfig).map(([key, config]) => {
+                  const isAllowed = allowedStatuses.includes(key as OrderStatus);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => isAllowed && handleStatusChange(key as OrderStatus)}
+                      disabled={!isAllowed}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        formData.status === key
+                          ? config.bgClass + ' font-medium'
+                          : isAllowed
+                            ? 'hover:bg-muted'
+                            : 'opacity-40 cursor-not-allowed line-through'
+                      }`}
+                    >
+                      {config.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
