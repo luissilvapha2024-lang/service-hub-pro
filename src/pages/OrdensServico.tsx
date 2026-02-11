@@ -7,7 +7,8 @@ import { useServiceOrders, statusConfig, ORDER_STATUS_VALUES, type ServiceOrder,
 import { useClients } from '@/hooks/useClients';
 import { useServices } from '@/hooks/useServices';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { WhatsAppButton, generateStatusMessage } from '@/components/WhatsAppButton';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { useWhatsAppTemplates } from '@/hooks/useWhatsAppTemplates';
 import { useAuth } from '@/contexts/AuthContext';
 import { TableSkeleton } from '@/components/ui/page-skeleton';
 import {
@@ -42,6 +43,7 @@ export default function OrdensServico() {
   const { clients } = useClients();
   const { services } = useServices();
   const { profile } = useAuth();
+  const { buildMessage } = useWhatsAppTemplates();
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -63,11 +65,11 @@ export default function OrdensServico() {
   });
 
   const getWhatsAppMessage = (os: ServiceOrder) => {
-    return generateStatusMessage(
+    return buildMessage(
+      os.status,
       os.client?.name || 'Cliente',
       os.order_number,
       os.device_model,
-      os.status,
       profile?.company_name || undefined
     );
   };
