@@ -32,15 +32,15 @@ export function WhatsAppButton({
   
   // Sanitiza e limita o tamanho da mensagem
   const sanitizedMessage = message.slice(0, 4096); // WhatsApp URL limit
-  const encodedMessage = encodeURIComponent(sanitizedMessage);
-  
-  // Monta a URL do WhatsApp de forma segura
-  const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
 
   const handleClick = () => {
     // Valida URL antes de abrir
     if (cleanPhone.length >= 10) {
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      // Usa URL API para encoding correto de emojis e caracteres especiais
+      const url = new URL(`https://api.whatsapp.com/send`);
+      url.searchParams.set('phone', formattedPhone);
+      url.searchParams.set('text', sanitizedMessage);
+      window.open(url.toString(), '_blank', 'noopener,noreferrer');
     }
   };
 
