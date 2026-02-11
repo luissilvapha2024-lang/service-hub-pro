@@ -270,6 +270,9 @@ export default function PDV() {
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left Column - Search and Products */}
         <div className="flex flex-col gap-4 w-80">
+          {/* Cash Register Controls */}
+          <CashRegisterControls salesTotal={todayCashSalesTotal} />
+
           {/* Search Panel */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
             <PanelHeader icon={Search}>Buscar</PanelHeader>
@@ -561,8 +564,6 @@ export default function PDV() {
 
         {/* Right Column - Payment */}
         <div className="w-72 flex flex-col gap-4">
-          {/* Cash Register Controls */}
-          <CashRegisterControls salesTotal={todayCashSalesTotal} />
 
           {/* Payment Method */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden flex-1 flex flex-col min-h-0">
