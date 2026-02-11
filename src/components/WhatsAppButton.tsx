@@ -34,14 +34,29 @@ export function WhatsAppButton({
   const sanitizedMessage = message.slice(0, 4096); // WhatsApp URL limit
 
   const handleClick = () => {
-    // Valida URL antes de abrir
-    if (cleanPhone.length >= 10) {
-      // Usa URL API para encoding correto de emojis e caracteres especiais
-      const url = new URL(`https://api.whatsapp.com/send`);
-      url.searchParams.set('phone', formattedPhone);
-      url.searchParams.set('text', sanitizedMessage);
-      window.open(url.toString(), '_blank', 'noopener,noreferrer');
-    }
+    if (cleanPhone.length < 10) return;
+
+    const encodedMessage = encodeURIComponent(sanitizedMessage);
+
+    // Tenta abrir direto no app via deep link (whatsapp://)
+    // Fallback para wa.me caso o deep link não funcione
+    const deepLink = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
+    const fallbackUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+
+    // Usa location.href para o deep link abrir direto no app
+    const timeout = setTimeout(() => {
+      // Se o deep link não abriu o app em 1.5s, usa fallback web
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+    }, 1500);
+
+    // Quando o app abre, a página perde foco - cancela o fallback
+    const handleBlur = () => {
+      clearTimeout(timeout);
+      window.removeEventListener('blur', handleBlur);
+    };
+    window.addEventListener('blur', handleBlur);
+
+    window.location.href = deepLink;
   };
 
   return (
