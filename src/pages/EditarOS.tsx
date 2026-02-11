@@ -19,7 +19,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { OrderPhotoUpload } from '@/components/OrderPhotoUpload';
-import { WhatsAppButton, generateStatusMessage } from '@/components/WhatsAppButton';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { useWhatsAppTemplates } from '@/hooks/useWhatsAppTemplates';
 import { StatusBadge } from '@/components/ui/status-badge';
 
 interface OrderPhoto {
@@ -38,6 +39,7 @@ export default function EditarOS() {
   const { orders, updateOrder, updateOrderStatus, isLoading: ordersLoading } = useServiceOrders();
   const { clients } = useClients();
   const { services } = useServices();
+  const { buildMessage } = useWhatsAppTemplates();
 
   const [isSaving, setIsSaving] = useState(false);
   const [photos, setPhotos] = useState<OrderPhoto[]>([]);
@@ -400,11 +402,11 @@ export default function EditarOS() {
                 <h3 className="font-semibold text-foreground">Notificar Cliente</h3>
                 <WhatsAppButton
                   phone={order.client.phone}
-                  message={generateStatusMessage(
+                  message={buildMessage(
+                    formData.status,
                     order.client.name || 'Cliente',
                     order.order_number,
                     formData.device_model,
-                    formData.status,
                     profile?.company_name || undefined
                   )}
                   variant="success"
