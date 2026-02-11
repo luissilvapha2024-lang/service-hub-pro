@@ -123,6 +123,27 @@ export default function EditarOS() {
         status: formData.status,
       });
 
+      // Sync order_services: delete existing and insert selected
+      await supabase
+        .from('order_services')
+        .delete()
+        .eq('order_id', id);
+
+      if (formData.serviceIds.length > 0) {
+        const selectedSvcs = services.filter((s) => formData.serviceIds.includes(s.id));
+        const orderServices = selectedSvcs.map((s) => ({
+          order_id: id,
+          service_id: s.id,
+          service_name: s.name,
+          price: Number(s.price),
+          quantity: 1,
+        }));
+        const { error: svcError } = await supabase
+          .from('order_services')
+          .insert(orderServices);
+        if (svcError) throw svcError;
+      }
+
       navigate('/ordens');
     } catch (error) {
       // Error is handled by the mutation
