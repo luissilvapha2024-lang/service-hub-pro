@@ -56,7 +56,7 @@ export default function PDV() {
   const { orders, isLoading: ordersLoading, updateOrderStatus } = useServiceOrders();
   const { createSale, sales } = useSales();
   const { clients } = useClients();
-  const { profile } = useAuth();
+  const { profile, company } = useAuth();
   const { isCashOpen, isPreviousDaySessionOpen, isLoading: cashLoading, currentSession } = useCashRegister();
 
   // Calculate today's cash sales total (only cash payments)
@@ -217,6 +217,7 @@ export default function PDV() {
           companyName: profile?.company_name || undefined,
           companyPhone: profile?.company_phone || undefined,
           companyAddress: profile?.company_address || undefined,
+          companyLogoUrl: company?.logo_url || undefined,
         });
       },
     });
