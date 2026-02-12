@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, AlertTriangle } from 'lucide-react';
+import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, AlertTriangle, CreditCard, QrCode, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCashRegister } from '@/hooks/useCashRegister';
 import { OpenCashDialog } from './OpenCashDialog';
@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 
 interface CashRegisterControlsProps {
   salesTotal: number;
+  paymentMethodTotals?: { credito: number; debito: number; pix: number };
 }
 
-export function CashRegisterControls({ salesTotal }: CashRegisterControlsProps) {
+export function CashRegisterControls({ salesTotal, paymentMethodTotals }: CashRegisterControlsProps) {
   const { 
     currentSession, 
     movements, 
@@ -22,6 +23,7 @@ export function CashRegisterControls({ salesTotal }: CashRegisterControlsProps) 
   } = useCashRegister();
 
   const [openDialog, setOpenDialog] = useState<'open' | 'close' | 'sangria' | 'suplemento' | null>(null);
+  const [showPaymentTotals, setShowPaymentTotals] = useState(true);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -111,6 +113,44 @@ export function CashRegisterControls({ salesTotal }: CashRegisterControlsProps) 
                   <p className="font-medium">{formatCurrency(salesTotal)}</p>
                 </div>
               </div>
+
+              {/* Payment Method Totals */}
+              {paymentMethodTotals && (
+                <div className="border-t border-border/50 pt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Vendas por Forma</span>
+                    <button
+                      onClick={() => setShowPaymentTotals(!showPaymentTotals)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPaymentTotals ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <CreditCard className="w-3 h-3 mx-auto mb-0.5 text-info" />
+                      <p className="text-[9px] text-muted-foreground">Crédito</p>
+                      <p className="text-[11px] font-bold text-foreground">
+                        {showPaymentTotals ? formatCurrency(paymentMethodTotals.credito) : '••••'}
+                      </p>
+                    </div>
+                    <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <CreditCard className="w-3 h-3 mx-auto mb-0.5 text-warning" />
+                      <p className="text-[9px] text-muted-foreground">Débito</p>
+                      <p className="text-[11px] font-bold text-foreground">
+                        {showPaymentTotals ? formatCurrency(paymentMethodTotals.debito) : '••••'}
+                      </p>
+                    </div>
+                    <div className="bg-muted/30 rounded p-1.5 text-center">
+                      <QrCode className="w-3 h-3 mx-auto mb-0.5 text-success" />
+                      <p className="text-[9px] text-muted-foreground">PIX</p>
+                      <p className="text-[11px] font-bold text-foreground">
+                        {showPaymentTotals ? formatCurrency(paymentMethodTotals.pix) : '••••'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button

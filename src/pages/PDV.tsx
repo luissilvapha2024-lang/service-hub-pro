@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList, Lock, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
@@ -51,7 +51,6 @@ export default function PDV() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [isClientPopoverOpen, setIsClientPopoverOpen] = useState(false);
-  const [showPaymentTotals, setShowPaymentTotals] = useState(true);
 
   const { products, isLoading: productsLoading } = useProducts();
   const { orders, isLoading: ordersLoading, updateOrderStatus } = useServiceOrders();
@@ -292,45 +291,7 @@ export default function PDV() {
         {/* Left Column - Search and Products */}
         <div className="flex flex-col gap-4 w-80">
           {/* Cash Register Controls */}
-          <CashRegisterControls salesTotal={todayCashSalesTotal} />
-
-          {/* Payment Method Totals */}
-          {isCashOpen && (
-            <div className="bg-card border rounded-lg overflow-hidden">
-              <div className="px-3 py-2 flex items-center justify-between bg-muted/50">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendas por Forma</span>
-                <button
-                  onClick={() => setShowPaymentTotals(!showPaymentTotals)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPaymentTotals ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2 p-2">
-                <div className="bg-muted/30 rounded p-2 text-center">
-                  <CreditCard className="w-3 h-3 mx-auto mb-1 text-info" />
-                  <p className="text-[10px] text-muted-foreground">Crédito</p>
-                  <p className="text-xs font-bold text-foreground">
-                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.credito) : '••••'}
-                  </p>
-                </div>
-                <div className="bg-muted/30 rounded p-2 text-center">
-                  <CreditCard className="w-3 h-3 mx-auto mb-1 text-warning" />
-                  <p className="text-[10px] text-muted-foreground">Débito</p>
-                  <p className="text-xs font-bold text-foreground">
-                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.debito) : '••••'}
-                  </p>
-                </div>
-                <div className="bg-muted/30 rounded p-2 text-center">
-                  <QrCode className="w-3 h-3 mx-auto mb-1 text-success" />
-                  <p className="text-[10px] text-muted-foreground">PIX</p>
-                  <p className="text-xs font-bold text-foreground">
-                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.pix) : '••••'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <CashRegisterControls salesTotal={todayCashSalesTotal} paymentMethodTotals={paymentMethodTotals} />
 
           {/* Search Panel */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
