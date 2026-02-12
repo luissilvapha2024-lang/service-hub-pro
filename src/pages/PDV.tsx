@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList, Lock } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Receipt, Loader2, User, X, Package, ClipboardList, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProducts } from '@/hooks/useProducts';
@@ -51,6 +51,7 @@ export default function PDV() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [isClientPopoverOpen, setIsClientPopoverOpen] = useState(false);
+  const [showPaymentTotals, setShowPaymentTotals] = useState(true);
 
   const { products, isLoading: productsLoading } = useProducts();
   const { orders, isLoading: ordersLoading, updateOrderStatus } = useServiceOrders();
@@ -67,11 +68,30 @@ export default function PDV() {
     return sales
       .filter(sale => {
         const saleDate = new Date(sale.created_at);
-        const paymentMethod = sale.payment_method.toLowerCase();
-        // Only count cash sales (dinheiro) made after session started
-        return saleDate >= sessionStart && paymentMethod.includes('dinheiro');
+        const pm = sale.payment_method.toLowerCase();
+        return saleDate >= sessionStart && pm.includes('dinheiro');
       })
       .reduce((acc, sale) => acc + Number(sale.total), 0);
+  }, [sales, currentSession]);
+
+  // Calculate today's sales totals by payment method
+  const paymentMethodTotals = useMemo(() => {
+    if (!currentSession) return { credito: 0, debito: 0, pix: 0 };
+    
+    const sessionStart = new Date(currentSession.opened_at);
+    const sessionSales = sales.filter(sale => new Date(sale.created_at) >= sessionStart);
+    
+    const credito = sessionSales
+      .filter(s => s.payment_method.toLowerCase().includes('crédito') || s.payment_method.toLowerCase().includes('credito'))
+      .reduce((acc, s) => acc + Number(s.total), 0);
+    const debito = sessionSales
+      .filter(s => s.payment_method.toLowerCase().includes('débito') || s.payment_method.toLowerCase().includes('debito'))
+      .reduce((acc, s) => acc + Number(s.total), 0);
+    const pix = sessionSales
+      .filter(s => s.payment_method.toLowerCase().includes('pix'))
+      .reduce((acc, s) => acc + Number(s.total), 0);
+    
+    return { credito, debito, pix };
   }, [sales, currentSession]);
 
   // Filtrar apenas OS com status "entregue" (prontas para pagamento)
@@ -273,6 +293,44 @@ export default function PDV() {
         <div className="flex flex-col gap-4 w-80">
           {/* Cash Register Controls */}
           <CashRegisterControls salesTotal={todayCashSalesTotal} />
+
+          {/* Payment Method Totals */}
+          {isCashOpen && (
+            <div className="bg-card border rounded-lg overflow-hidden">
+              <div className="px-3 py-2 flex items-center justify-between bg-muted/50">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendas por Forma</span>
+                <button
+                  onClick={() => setShowPaymentTotals(!showPaymentTotals)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPaymentTotals ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 p-2">
+                <div className="bg-muted/30 rounded p-2 text-center">
+                  <CreditCard className="w-3 h-3 mx-auto mb-1 text-info" />
+                  <p className="text-[10px] text-muted-foreground">Crédito</p>
+                  <p className="text-xs font-bold text-foreground">
+                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.credito) : '••••'}
+                  </p>
+                </div>
+                <div className="bg-muted/30 rounded p-2 text-center">
+                  <CreditCard className="w-3 h-3 mx-auto mb-1 text-warning" />
+                  <p className="text-[10px] text-muted-foreground">Débito</p>
+                  <p className="text-xs font-bold text-foreground">
+                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.debito) : '••••'}
+                  </p>
+                </div>
+                <div className="bg-muted/30 rounded p-2 text-center">
+                  <QrCode className="w-3 h-3 mx-auto mb-1 text-success" />
+                  <p className="text-[10px] text-muted-foreground">PIX</p>
+                  <p className="text-xs font-bold text-foreground">
+                    {showPaymentTotals ? formatCurrency(paymentMethodTotals.pix) : '••••'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Search Panel */}
           <div className="bg-card border rounded-lg shadow-soft overflow-hidden">
