@@ -126,13 +126,13 @@ export function useReports({
     });
 
     const statusMapping: Record<string, { name: string; color: string }> = {
-      em_analise: { name: 'Em Análise', color: 'hsl(var(--info))' },
-      aguardando_autorizacao: { name: 'Aguardando', color: 'hsl(var(--warning))' },
-      aguardando_pecas: { name: 'Aguardando Peças', color: 'hsl(var(--warning))' },
-      em_andamento: { name: 'Em Andamento', color: 'hsl(var(--primary))' },
-      concluido: { name: 'Concluídas', color: 'hsl(var(--success))' },
-      entregue: { name: 'Entregue', color: 'hsl(var(--success))' },
-      pago: { name: 'Pago', color: 'hsl(var(--success))' },
+      em_analise: { name: 'Em Análise', color: '#6366F1' },
+      aguardando_autorizacao: { name: 'Aguardando', color: '#F59E0B' },
+      aguardando_pecas: { name: 'Aguardando Peças', color: '#E879A0' },
+      em_andamento: { name: 'Em Andamento', color: '#0EA5E9' },
+      concluido: { name: 'Concluídas', color: '#10B981' },
+      entregue: { name: 'Entregue', color: '#8B5CF6' },
+      pago: { name: 'Pago', color: '#14B8A6' },
     };
 
     return Object.entries(statusCounts)
