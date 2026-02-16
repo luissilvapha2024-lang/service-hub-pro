@@ -42,9 +42,15 @@ export default function RecuperarSenha() {
       });
     } catch (error: any) {
       console.error('Error sending password reset:', error);
+      const userMessage =
+        error?.message?.includes('sending recovery email')
+          ? 'Não foi possível enviar o email de recuperação. O serviço de email pode estar temporariamente indisponível. Tente novamente em alguns minutos.'
+          : error?.message?.includes('rate limit')
+            ? 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.'
+            : 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.';
       toast({
-        title: 'Erro',
-        description: error.message || 'Erro ao enviar email de recuperação.',
+        title: 'Falha na recuperação de senha',
+        description: userMessage,
         variant: 'destructive',
       });
     } finally {
