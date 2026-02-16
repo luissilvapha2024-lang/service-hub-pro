@@ -103,14 +103,14 @@ export function CashRegisterControls({ salesTotal, paymentMethodTotals }: CashRe
         <div className="p-3 space-y-2">
           {isCashOpen ? (
             <>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-muted/50 rounded p-2">
                   <p className="text-muted-foreground">Abertura</p>
-                  <p className="font-medium">{formatCurrency(Number(currentSession?.opening_balance || 0))}</p>
+                  <p className="font-medium">{showPaymentTotals ? formatCurrency(Number(currentSession?.opening_balance || 0)) : '••••'}</p>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <p className="text-muted-foreground">Vendas (dinheiro)</p>
-                  <p className="font-medium">{formatCurrency(salesTotal)}</p>
+                  <p className="font-medium">{showPaymentTotals ? formatCurrency(salesTotal) : '••••'}</p>
                 </div>
               </div>
 
