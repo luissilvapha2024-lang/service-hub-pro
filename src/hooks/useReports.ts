@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import { useServiceOrders, statusConfig } from '@/hooks/useServiceOrders';
+import { useServiceOrders } from '@/hooks/useServiceOrders';
 import { useSales } from '@/hooks/useSales';
 import { useClients } from '@/hooks/useClients';
-import { isWithinInterval, format, parseISO, startOfMonth, subMonths } from 'date-fns';
+import { useProducts } from '@/hooks/useProducts';
+import { useTransactions } from '@/hooks/useTransactions';
+import { isWithinInterval, format, parseISO, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface UseReportsParams {
@@ -21,33 +23,30 @@ export function useReports({
   const { orders, isLoading: ordersLoading } = useServiceOrders();
   const { sales, isLoading: salesLoading } = useSales();
   const { clients, isLoading: clientsLoading } = useClients();
+  const { products, isLoading: productsLoading } = useProducts();
+  const { transactions, isLoading: transactionsLoading } = useTransactions();
 
-  const isLoading = ordersLoading || salesLoading || clientsLoading;
+  const isLoading = ordersLoading || salesLoading || clientsLoading || productsLoading || transactionsLoading;
+
+  // Build product cost map
+  const productCostMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    products.forEach(p => { map[p.id] = p.cost || 0; });
+    return map;
+  }, [products]);
 
   // Filter orders by date range and filters
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      // Date filter
       if (startDate && endDate) {
         const orderDate = parseISO(order.created_at);
-        if (!isWithinInterval(orderDate, { start: startDate, end: endDate })) {
-          return false;
-        }
+        if (!isWithinInterval(orderDate, { start: startDate, end: endDate })) return false;
       }
-
-      // Client filter
-      if (selectedClientId !== 'all' && order.client_id !== selectedClientId) {
-        return false;
-      }
-
-      // Service filter
+      if (selectedClientId !== 'all' && order.client_id !== selectedClientId) return false;
       if (selectedServiceId !== 'all') {
-        const hasService = order.order_services?.some(
-          os => os.service_id === selectedServiceId
-        );
+        const hasService = order.order_services?.some(os => os.service_id === selectedServiceId);
         if (!hasService) return false;
       }
-
       return true;
     });
   }, [orders, startDate, endDate, selectedClientId, selectedServiceId]);
@@ -55,74 +54,168 @@ export function useReports({
   // Filter sales by date range and filters
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
-      // Date filter
       if (startDate && endDate) {
         const saleDate = parseISO(sale.created_at);
-        if (!isWithinInterval(saleDate, { start: startDate, end: endDate })) {
-          return false;
-        }
+        if (!isWithinInterval(saleDate, { start: startDate, end: endDate })) return false;
       }
-
-      // Client filter
-      if (selectedClientId !== 'all' && sale.client_id !== selectedClientId) {
-        return false;
-      }
-
-      // Service filter - check if any sale item matches the service
+      if (selectedClientId !== 'all' && sale.client_id !== selectedClientId) return false;
       if (selectedServiceId !== 'all') {
-        const hasService = sale.sale_items?.some(
-          item => item.service_id === selectedServiceId
-        );
+        const hasService = sale.sale_items?.some(item => item.service_id === selectedServiceId);
         if (!hasService) return false;
       }
-
       return true;
     });
   }, [sales, startDate, endDate, selectedClientId, selectedServiceId]);
 
-  // Calculate monthly data for charts (last 6 months)
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      if (startDate && endDate) {
+        const tDate = parseISO(t.created_at);
+        if (!isWithinInterval(tDate, { start: startDate, end: endDate })) return false;
+      }
+      return true;
+    });
+  }, [transactions, startDate, endDate]);
+
+  // Calculate product profit from sales
+  const productProfitData = useMemo(() => {
+    let totalRevenue = 0;
+    let totalCost = 0;
+    const perProduct: Record<string, { name: string; revenue: number; cost: number; profit: number; quantity: number }> = {};
+
+    filteredSales.forEach(sale => {
+      sale.sale_items?.forEach(item => {
+        if (item.item_type === 'product' && item.product_id) {
+          const cost = productCostMap[item.product_id] || 0;
+          const itemCost = cost * item.quantity;
+          const itemRevenue = item.total_price;
+          
+          totalRevenue += itemRevenue;
+          totalCost += itemCost;
+
+          if (!perProduct[item.item_name]) {
+            perProduct[item.item_name] = { name: item.item_name, revenue: 0, cost: 0, profit: 0, quantity: 0 };
+          }
+          perProduct[item.item_name].revenue += itemRevenue;
+          perProduct[item.item_name].cost += itemCost;
+          perProduct[item.item_name].profit += (itemRevenue - itemCost);
+          perProduct[item.item_name].quantity += item.quantity;
+        }
+      });
+    });
+
+    const productList = Object.values(perProduct).sort((a, b) => b.profit - a.profit);
+
+    return {
+      totalRevenue,
+      totalCost,
+      totalProfit: totalRevenue - totalCost,
+      margin: totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0,
+      products: productList,
+    };
+  }, [filteredSales, productCostMap]);
+
+  // Calculate service profit from sales (services have no cost tracked, so revenue = profit)
+  const serviceProfitData = useMemo(() => {
+    let totalRevenue = 0;
+    const perService: Record<string, { name: string; revenue: number; quantity: number }> = {};
+
+    // From sale_items (services sold via PDV)
+    filteredSales.forEach(sale => {
+      sale.sale_items?.forEach(item => {
+        if (item.item_type === 'service') {
+          totalRevenue += item.total_price;
+          if (!perService[item.item_name]) {
+            perService[item.item_name] = { name: item.item_name, revenue: 0, quantity: 0 };
+          }
+          perService[item.item_name].revenue += item.total_price;
+          perService[item.item_name].quantity += item.quantity;
+        }
+      });
+    });
+
+    return { totalRevenue, services: Object.values(perService).sort((a, b) => b.revenue - a.revenue) };
+  }, [filteredSales]);
+
+  // Calculate OS revenue
+  const osProfitData = useMemo(() => {
+    let totalRevenue = 0;
+    let completedRevenue = 0;
+    let pendingRevenue = 0;
+
+    filteredOrders.forEach(order => {
+      const value = order.final_value || order.estimated_value || 0;
+      totalRevenue += value;
+      if (['concluido', 'entregue', 'pago'].includes(order.status)) {
+        completedRevenue += value;
+      } else {
+        pendingRevenue += value;
+      }
+    });
+
+    return { totalRevenue, completedRevenue, pendingRevenue };
+  }, [filteredOrders]);
+
+  // Expenses from transactions
+  const expensesData = useMemo(() => {
+    const entradas = filteredTransactions.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0);
+    const saidas = filteredTransactions.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0);
+    return { entradas, saidas, lucroLiquido: entradas - saidas };
+  }, [filteredTransactions]);
+
+  // Monthly data for charts (last 6 months)
   const monthlyData = useMemo(() => {
-    const months: { mes: string; vendas: number; servicos: number; monthKey: string }[] = [];
+    const months: { mes: string; vendasReceita: number; vendasLucro: number; osReceita: number; despesas: number; monthKey: string }[] = [];
     
     for (let i = 5; i >= 0; i--) {
       const date = subMonths(new Date(), i);
       const monthKey = format(date, 'yyyy-MM');
       const monthLabel = format(date, 'MMM', { locale: ptBR });
       
-      // Sum sales for this month
-      const monthlySalesTotal = sales
-        .filter(sale => {
-          const saleDate = parseISO(sale.created_at);
-          return format(saleDate, 'yyyy-MM') === monthKey;
-        })
-        .reduce((sum, sale) => sum + (sale.total || 0), 0);
+      // Sales revenue & profit for this month
+      let vendasReceita = 0;
+      let vendasLucro = 0;
+      sales.filter(sale => format(parseISO(sale.created_at), 'yyyy-MM') === monthKey).forEach(sale => {
+        vendasReceita += (sale.total || 0);
+        sale.sale_items?.forEach(item => {
+          if (item.item_type === 'product' && item.product_id) {
+            const cost = productCostMap[item.product_id] || 0;
+            vendasLucro += item.total_price - (cost * item.quantity);
+          } else {
+            vendasLucro += item.total_price;
+          }
+        });
+      });
 
-      // Sum service orders value for this month
-      const monthlyServicesTotal = orders
-        .filter(order => {
-          const orderDate = parseISO(order.created_at);
-          return format(orderDate, 'yyyy-MM') === monthKey;
-        })
+      // OS revenue for this month
+      const osReceita = orders
+        .filter(order => format(parseISO(order.created_at), 'yyyy-MM') === monthKey)
         .reduce((sum, order) => sum + (order.final_value || order.estimated_value || 0), 0);
+
+      // Expenses for this month
+      const despesas = transactions
+        .filter(t => t.type === 'saida' && format(parseISO(t.created_at), 'yyyy-MM') === monthKey)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
 
       months.push({
         mes: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-        vendas: monthlySalesTotal,
-        servicos: monthlyServicesTotal,
+        vendasReceita,
+        vendasLucro,
+        osReceita,
+        despesas,
         monthKey,
       });
     }
 
     return months;
-  }, [sales, orders]);
+  }, [sales, orders, transactions, productCostMap]);
 
-  // Calculate OS status distribution
+  // OS status distribution
   const osStatusData = useMemo(() => {
     const statusCounts: Record<string, number> = {};
-    
     filteredOrders.forEach(order => {
-      const status = order.status;
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
     });
 
     const statusMapping: Record<string, { name: string; color: string }> = {
@@ -144,115 +237,79 @@ export function useReports({
       .filter(item => item.value > 0);
   }, [filteredOrders]);
 
-  // Calculate most sold services
-  const topServices = useMemo(() => {
-    const serviceCounts: Record<string, number> = {};
-
-    // Count from order_services
-    filteredOrders.forEach(order => {
-      order.order_services?.forEach(os => {
-        const name = os.service_name || os.service?.name || 'Serviço';
-        serviceCounts[name] = (serviceCounts[name] || 0) + os.quantity;
-      });
-    });
-
-    // Count from sale_items (services only)
-    filteredSales.forEach(sale => {
-      sale.sale_items?.forEach(item => {
-        if (item.item_type === 'service') {
-          serviceCounts[item.item_name] = (serviceCounts[item.item_name] || 0) + item.quantity;
-        }
-      });
-    });
-
-    return Object.entries(serviceCounts)
-      .map(([nome, quantidade]) => ({ nome, quantidade }))
-      .sort((a, b) => b.quantidade - a.quantidade)
-      .slice(0, 5);
-  }, [filteredOrders, filteredSales]);
-
-  // Calculate most sold products
-  const topProducts = useMemo(() => {
-    const productCounts: Record<string, { quantidade: number; receita: number }> = {};
-
-    // Count from sale_items (products only)
-    filteredSales.forEach(sale => {
-      sale.sale_items?.forEach(item => {
-        if (item.item_type === 'product') {
-          if (!productCounts[item.item_name]) {
-            productCounts[item.item_name] = { quantidade: 0, receita: 0 };
-          }
-          productCounts[item.item_name].quantidade += item.quantity;
-          productCounts[item.item_name].receita += item.total_price;
-        }
-      });
-    });
-
-    return Object.entries(productCounts)
-      .map(([nome, data]) => ({ nome, quantidade: data.quantidade, receita: data.receita }))
-      .sort((a, b) => b.quantidade - a.quantidade)
-      .slice(0, 5);
-  }, [filteredSales]);
-
-  // Calculate top clients
+  // Top clients
   const topClients = useMemo(() => {
-    const clientData: Record<string, { 
-      name: string; 
-      phone: string; 
-      osCount: number; 
-      lastVisit: string;
-    }> = {};
+    const clientData: Record<string, { name: string; phone: string; osCount: number; totalValue: number; lastVisit: string }> = {};
 
     filteredOrders.forEach(order => {
       if (order.client) {
         const clientId = order.client.id;
         if (!clientData[clientId]) {
-          clientData[clientId] = {
-            name: order.client.name,
-            phone: order.client.phone,
-            osCount: 0,
-            lastVisit: order.created_at,
-          };
+          clientData[clientId] = { name: order.client.name, phone: order.client.phone, osCount: 0, totalValue: 0, lastVisit: order.created_at };
         }
         clientData[clientId].osCount += 1;
+        clientData[clientId].totalValue += (order.final_value || order.estimated_value || 0);
         if (order.created_at > clientData[clientId].lastVisit) {
           clientData[clientId].lastVisit = order.created_at;
         }
       }
     });
 
-    return Object.values(clientData)
-      .sort((a, b) => b.osCount - a.osCount)
-      .slice(0, 5);
+    return Object.values(clientData).sort((a, b) => b.totalValue - a.totalValue).slice(0, 5);
   }, [filteredOrders]);
 
-  // Calculate summary metrics
+  // Payment method distribution
+  const paymentMethodData = useMemo(() => {
+    const methods: Record<string, number> = {};
+    filteredSales.forEach(sale => {
+      const method = sale.payment_method || 'Outros';
+      methods[method] = (methods[method] || 0) + (sale.total || 0);
+    });
+    
+    const labels: Record<string, string> = {
+      dinheiro: 'Dinheiro', pix: 'PIX', credito: 'Crédito', debito: 'Débito',
+      transferencia: 'Transferência', boleto: 'Boleto', Outros: 'Outros',
+    };
+    const colors = ['#0EA5E9', '#10B981', '#8B5CF6', '#F59E0B', '#E879A0', '#6366F1', '#94A3B8'];
+
+    return Object.entries(methods).map(([method, value], i) => ({
+      name: labels[method] || method,
+      value,
+      color: colors[i % colors.length],
+    }));
+  }, [filteredSales]);
+
+  // Summary metrics
   const summaryMetrics = useMemo(() => {
-    const totalSales = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
-    const totalOrders = filteredOrders.reduce(
-      (sum, order) => sum + (order.final_value || order.estimated_value || 0), 
-      0
-    );
-    const completedOrders = filteredOrders.filter(
-      o => ['concluido', 'entregue', 'pago'].includes(o.status)
-    ).length;
+    const totalSalesRevenue = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+    const totalOSRevenue = filteredOrders.reduce((sum, order) => sum + (order.final_value || order.estimated_value || 0), 0);
+    const completedOrders = filteredOrders.filter(o => ['concluido', 'entregue', 'pago'].includes(o.status)).length;
 
     return {
-      totalRevenue: totalSales + totalOrders,
+      totalRevenue: totalSalesRevenue + totalOSRevenue,
+      totalSalesRevenue,
+      totalOSRevenue,
       salesCount: filteredSales.length,
       ordersCount: filteredOrders.length,
       completedOrders,
+      productProfit: productProfitData.totalProfit,
+      productMargin: productProfitData.margin,
+      netProfit: expensesData.lucroLiquido,
+      expenses: expensesData.saidas,
     };
-  }, [filteredSales, filteredOrders]);
+  }, [filteredSales, filteredOrders, productProfitData, expensesData]);
 
   return {
     isLoading,
     monthlyData,
     osStatusData,
-    topServices,
-    topProducts,
     topClients,
     summaryMetrics,
+    productProfitData,
+    serviceProfitData,
+    osProfitData,
+    expensesData,
+    paymentMethodData,
     filteredOrders,
     filteredSales,
   };
