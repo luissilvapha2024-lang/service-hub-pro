@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { MessageCircle, RotateCcw, Save, Loader2, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageCircle, RotateCcw, Save, Loader2, Info, Monitor, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Accordion,
   AccordionContent,
@@ -29,6 +30,14 @@ export function WhatsAppSettings() {
   const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
+  const [whatsappMode, setWhatsappMode] = useState<string>(() => {
+    return localStorage.getItem('whatsapp_open_mode') || 'auto';
+  });
+
+  const handleModeChange = (value: string) => {
+    setWhatsappMode(value);
+    localStorage.setItem('whatsapp_open_mode', value);
+  };
 
   const handleEdit = (statusKey: string) => {
     setEditingStatus(statusKey);
@@ -73,6 +82,50 @@ export function WhatsAppSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Preferência de abertura */}
+      <div className="bg-card rounded-xl border p-6 shadow-soft">
+        <div className="flex items-center gap-3 mb-2">
+          <MessageCircle className="w-5 h-5 text-[#25D366]" />
+          <h3 className="text-lg font-semibold text-foreground">Preferência de Abertura</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Escolha como o WhatsApp será aberto ao enviar mensagens.
+        </p>
+        <RadioGroup value={whatsappMode} onValueChange={handleModeChange} className="space-y-3">
+          <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <RadioGroupItem value="auto" id="mode-auto" />
+            <Label htmlFor="mode-auto" className="flex items-center gap-2 cursor-pointer flex-1">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="font-medium text-sm">Automático (Recomendado)</p>
+                <p className="text-xs text-muted-foreground">Abre via navegador — você escolhe entre Web ou App</p>
+              </div>
+            </Label>
+          </div>
+          <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <RadioGroupItem value="web" id="mode-web" />
+            <Label htmlFor="mode-web" className="flex items-center gap-2 cursor-pointer flex-1">
+              <Globe className="w-4 h-4 text-[#25D366]" />
+              <div>
+                <p className="font-medium text-sm">WhatsApp Web</p>
+                <p className="text-xs text-muted-foreground">Sempre abre no navegador (web.whatsapp.com)</p>
+              </div>
+            </Label>
+          </div>
+          <div className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <RadioGroupItem value="desktop" id="mode-desktop" />
+            <Label htmlFor="mode-desktop" className="flex items-center gap-2 cursor-pointer flex-1">
+              <Monitor className="w-4 h-4 text-[#25D366]" />
+              <div>
+                <p className="font-medium text-sm">Aplicativo Desktop</p>
+                <p className="text-xs text-muted-foreground">Tenta abrir no app instalado no computador</p>
+              </div>
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Templates */}
       <div className="bg-card rounded-xl border p-6 shadow-soft">
         <div className="flex items-center gap-3 mb-2">
           <MessageCircle className="w-5 h-5 text-[#25D366]" />
