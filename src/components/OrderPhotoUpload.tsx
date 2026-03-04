@@ -26,13 +26,29 @@ interface OrderPhotoUploadProps {
 export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: OrderPhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const getPublicUrl = (filePath: string) => {
-    const { data } = supabase.storage.from('order-photos').getPublicUrl(filePath);
-    return data.publicUrl;
+  const getSignedUrl = async (filePath: string): Promise<string> => {
+    if (signedUrls[filePath]) return signedUrls[filePath];
+    
+    const { data, error } = await supabase.storage
+      .from('order-photos')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+    
+    if (error || !data?.signedUrl) return '';
+    
+    setSignedUrls(prev => ({ ...prev, [filePath]: data.signedUrl }));
+    return data.signedUrl;
   };
+
+  // Load signed URLs for all photos on mount/change
+  useState(() => {
+    photos.forEach(photo => {
+      getSignedUrl(photo.file_path);
+    });
+  });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -42,7 +58,6 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
 
     try {
       for (const file of Array.from(files)) {
-        // Validar tipo de arquivo
         if (!file.type.startsWith('image/')) {
           toast({
             title: 'Arquivo inválido',
@@ -52,7 +67,6 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
           continue;
         }
 
-        // Validar tamanho (máx 5MB)
         if (file.size > 5 * 1024 * 1024) {
           toast({
             title: 'Arquivo muito grande',
@@ -62,18 +76,15 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
           continue;
         }
 
-        // Gerar nome único
         const fileExt = file.name.split('.').pop();
         const fileName = `${orderId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        // Upload para o storage
         const { error: uploadError } = await supabase.storage
           .from('order-photos')
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        // Salvar referência no banco
         const { error: dbError } = await supabase
           .from('order_photos')
           .insert({
@@ -107,20 +118,24 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
 
   const handleDeletePhoto = async (photo: OrderPhoto) => {
     try {
-      // Deletar do storage
       const { error: storageError } = await supabase.storage
         .from('order-photos')
         .remove([photo.file_path]);
 
       if (storageError) throw storageError;
 
-      // Deletar referência do banco
       const { error: dbError } = await supabase
         .from('order_photos')
         .delete()
         .eq('id', photo.id);
 
       if (dbError) throw dbError;
+
+      setSignedUrls(prev => {
+        const next = { ...prev };
+        delete next[photo.file_path];
+        return next;
+      });
 
       toast({
         title: 'Foto removida',
@@ -135,6 +150,11 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
         variant: 'destructive',
       });
     }
+  };
+
+  const handlePreview = async (filePath: string) => {
+    const url = await getSignedUrl(filePath);
+    if (url) setPreviewImage(url);
   };
 
   return (
@@ -181,10 +201,10 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
               className="relative group aspect-square rounded-lg overflow-hidden border bg-muted"
             >
               <img
-                src={getPublicUrl(photo.file_path)}
+                src={signedUrls[photo.file_path] || ''}
                 alt={photo.file_name}
                 className="w-full h-full object-cover cursor-pointer"
-                onClick={() => setPreviewImage(getPublicUrl(photo.file_path))}
+                onClick={() => handlePreview(photo.file_path)}
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                 <Button
@@ -192,7 +212,7 @@ export function OrderPhotoUpload({ orderId, photos, onPhotosChange, disabled }: 
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-white hover:text-white hover:bg-white/20"
-                  onClick={() => setPreviewImage(getPublicUrl(photo.file_path))}
+                  onClick={() => handlePreview(photo.file_path)}
                 >
                   <ZoomIn className="w-4 h-4" />
                 </Button>
