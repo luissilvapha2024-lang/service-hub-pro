@@ -37,7 +37,17 @@ export function WhatsAppButton({
     if (cleanPhone.length < 10) return;
 
     const encodedMessage = encodeURIComponent(sanitizedMessage);
-    const url = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    const mode = localStorage.getItem('whatsapp_open_mode') || 'auto';
+    
+    let url: string;
+    if (mode === 'web') {
+      url = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
+    } else if (mode === 'desktop') {
+      url = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
+    } else {
+      url = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    }
+    
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
