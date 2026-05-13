@@ -258,25 +258,78 @@ export function useReports({
     return Object.values(clientData).sort((a, b) => b.totalValue - a.totalValue).slice(0, 5);
   }, [filteredOrders]);
 
-  // Payment method distribution
+  // Payment method distribution (split combined methods into individual ones)
   const paymentMethodData = useMemo(() => {
-    const methods: Record<string, number> = {};
-    filteredSales.forEach(sale => {
-      const method = sale.payment_method || 'Outros';
-      methods[method] = (methods[method] || 0) + (sale.total || 0);
-    });
-    
     const labels: Record<string, string> = {
       dinheiro: 'Dinheiro', pix: 'PIX', credito: 'Crédito', debito: 'Débito',
-      transferencia: 'Transferência', boleto: 'Boleto', Outros: 'Outros',
+      transferencia: 'Transferência', boleto: 'Boleto', outros: 'Outros',
     };
-    const colors = ['#0EA5E9', '#10B981', '#8B5CF6', '#F59E0B', '#E879A0', '#6366F1', '#94A3B8'];
+    const colorMap: Record<string, string> = {
+      Dinheiro: '#F59E0B',
+      PIX: '#0EA5E9',
+      Crédito: '#8B5CF6',
+      Débito: '#E879A0',
+      Transferência: '#10B981',
+      Boleto: '#6366F1',
+      Outros: '#94A3B8',
+    };
 
-    return Object.entries(methods).map(([method, value], i) => ({
-      name: labels[method] || method,
-      value,
-      color: colors[i % colors.length],
-    }));
+    const normalize = (raw: string): string => {
+      const key = raw.trim().toLowerCase();
+      if (labels[key]) return labels[key];
+      // Try to match known label by case-insensitive comparison
+      const found = Object.values(labels).find(l => l.toLowerCase() === key);
+      return found || raw.trim();
+    };
+
+    // Parse strings like "Dinheiro (R$ 150,00) + Débito (R$ 233,00)"
+    // or single methods like "pix" / "Dinheiro"
+    const parsePaymentMethod = (raw: string, totalFallback: number): Array<{ name: string; value: number }> => {
+      if (!raw) return [{ name: 'Outros', value: totalFallback }];
+
+      const hasBreakdown = /\(\s*R\$/i.test(raw);
+      if (hasBreakdown) {
+        const parts: Array<{ name: string; value: number }> = [];
+        // Match "Name (R$ 1.234,56)"
+        const regex = /([A-Za-zÀ-ÿ]+)\s*\(\s*R\$\s*([\d.,]+)\s*\)/g;
+        let m: RegExpExecArray | null;
+        while ((m = regex.exec(raw)) !== null) {
+          const name = normalize(m[1]);
+          const numStr = m[2].replace(/\./g, '').replace(',', '.');
+          const value = parseFloat(numStr) || 0;
+          parts.push({ name, value });
+        }
+        if (parts.length > 0) return parts;
+      }
+
+      // Split by + or , or / for combined without amounts → distribute equally
+      const tokens = raw.split(/\s*[+,/]\s*/).filter(Boolean);
+      if (tokens.length > 1) {
+        const each = totalFallback / tokens.length;
+        return tokens.map(t => ({ name: normalize(t), value: each }));
+      }
+
+      return [{ name: normalize(raw), value: totalFallback }];
+    };
+
+    const methods: Record<string, number> = {};
+    filteredSales.forEach(sale => {
+      const raw = sale.payment_method || 'Outros';
+      const parts = parsePaymentMethod(raw, sale.total || 0);
+      parts.forEach(p => {
+        methods[p.name] = (methods[p.name] || 0) + p.value;
+      });
+    });
+
+    const fallbackColors = ['#0EA5E9', '#10B981', '#8B5CF6', '#F59E0B', '#E879A0', '#6366F1', '#94A3B8'];
+
+    return Object.entries(methods)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value], i) => ({
+        name,
+        value,
+        color: colorMap[name] || fallbackColors[i % fallbackColors.length],
+      }));
   }, [filteredSales]);
 
   // Summary metrics
