@@ -274,42 +274,95 @@ export function useReports({
       Outros: '#94A3B8',
     };
 
-    const normalize = (raw: string): string => {
-      const key = raw.trim().toLowerCase();
-      if (labels[key]) return labels[key];
-      // Try to match known label by case-insensitive comparison
-      const found = Object.values(labels).find(l => l.toLowerCase() === key);
-      return found || raw.trim();
+    // Aliases → canonical label (handles common variations)
+    const aliasMap: Record<string, string> = {
+      dinheiro: 'Dinheiro', cash: 'Dinheiro', especie: 'Dinheiro', 'espécie': 'Dinheiro',
+      pix: 'PIX',
+      credito: 'Crédito', 'crédito': 'Crédito',
+      'cartao de credito': 'Crédito', 'cartão de crédito': 'Crédito',
+      'cartao credito': 'Crédito', 'cartão credito': 'Crédito',
+      debito: 'Débito', 'débito': 'Débito',
+      'cartao de debito': 'Débito', 'cartão de débito': 'Débito',
+      'cartao debito': 'Débito', 'cartão debito': 'Débito',
+      cartao: 'Cartão', 'cartão': 'Cartão',
+      transferencia: 'Transferência', 'transferência': 'Transferência',
+      ted: 'Transferência', doc: 'Transferência',
+      boleto: 'Boleto',
+      cheque: 'Cheque',
+      crediario: 'Crediário', 'crediário': 'Crediário', fiado: 'Crediário',
+      outros: 'Outros', outro: 'Outros',
     };
 
-    // Parse strings like "Dinheiro (R$ 150,00) + Débito (R$ 233,00)"
-    // or single methods like "pix" / "Dinheiro"
+    const normalize = (raw: string): string => {
+      const key = raw.trim().toLowerCase().replace(/\s+/g, ' ');
+      if (aliasMap[key]) return aliasMap[key];
+      if (labels[key]) return labels[key];
+      const found = Object.values(labels).find(l => l.toLowerCase() === key);
+      if (found) return found;
+      return raw.trim().replace(/\b\w/g, c => c.toUpperCase());
+    };
+
+    // Parse a BR currency number like "1.234,56", "1234,56", "1234.56", "1234"
+    const parseBRL = (s: string): number => {
+      const cleaned = s.replace(/\s/g, '');
+      if (cleaned.includes(',')) {
+        return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+      }
+      // No comma: dot may be decimal OR thousands. Treat dot as decimal only if 1-2 digits after.
+      const dotMatch = cleaned.match(/^(\d+)\.(\d{1,2})$/);
+      if (dotMatch) return parseFloat(cleaned) || 0;
+      return parseFloat(cleaned.replace(/\./g, '')) || 0;
+    };
+
+    // Parse strings with various formats:
+    //  "Dinheiro (R$ 150,00) + Débito (R$ 233,00)"
+    //  "Dinheiro: R$ 150,00 + Débito R$ 233,00"
+    //  "Dinheiro R$150 / Cartão de Crédito R$ 233,00"
+    //  "Dinheiro 150,00 e Débito 233,00"
+    //  "pix" / "Dinheiro"
     const parsePaymentMethod = (raw: string, totalFallback: number): Array<{ name: string; value: number }> => {
       if (!raw) return [{ name: 'Outros', value: totalFallback }];
+      const trimmed = raw.trim();
 
-      const hasBreakdown = /\(\s*R\$/i.test(raw);
-      if (hasBreakdown) {
-        const parts: Array<{ name: string; value: number }> = [];
-        // Match "Name (R$ 1.234,56)"
-        const regex = /([A-Za-zÀ-ÿ]+)\s*\(\s*R\$\s*([\d.,]+)\s*\)/g;
-        let m: RegExpExecArray | null;
-        while ((m = regex.exec(raw)) !== null) {
-          const name = normalize(m[1]);
-          const numStr = m[2].replace(/\./g, '').replace(',', '.');
-          const value = parseFloat(numStr) || 0;
-          parts.push({ name, value });
-        }
-        if (parts.length > 0) return parts;
+      // Match "<name> [sep] [(] [R$] <amount> [)]"
+      // Name: letters/spaces (multi-word like "Cartão de Crédito"); Amount: BR or US number
+      const pairRegex = /([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s]*?)\s*[:\-]?\s*\(?\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{1,2}|\d+,\d{1,2}|\d+\.\d{1,2}|\d+)\s*\)?/gi;
+      const parts: Array<{ name: string; value: number }> = [];
+      let match: RegExpExecArray | null;
+
+      while ((match = pairRegex.exec(trimmed)) !== null) {
+        const rawName = match[1].trim();
+        if (!rawName) continue;
+        const value = parseBRL(match[2]);
+        if (value <= 0) continue;
+        parts.push({ name: normalize(rawName), value });
       }
 
-      // Split by + or , or / for combined without amounts → distribute equally
-      const tokens = raw.split(/\s*[+,/]\s*/).filter(Boolean);
+      // Merge duplicate names (same form of payment appearing more than once)
+      if (parts.length > 0) {
+        const merged: Record<string, number> = {};
+        parts.forEach(p => { merged[p.name] = (merged[p.name] || 0) + p.value; });
+        const result = Object.entries(merged).map(([name, value]) => ({ name, value }));
+
+        // Sanity check: if extracted sum is way off from total and we only got 1 part,
+        // fall back to using totalFallback for that single method
+        if (result.length === 1 && totalFallback > 0) {
+          const diff = Math.abs(result[0].value - totalFallback);
+          if (diff / totalFallback > 0.5) {
+            return [{ name: result[0].name, value: totalFallback }];
+          }
+        }
+        return result;
+      }
+
+      // No amounts found — split by separators and distribute equally
+      const tokens = trimmed.split(/\s*(?:\+|,|\/|&|\se\s)\s*/i).filter(Boolean);
       if (tokens.length > 1) {
         const each = totalFallback / tokens.length;
         return tokens.map(t => ({ name: normalize(t), value: each }));
       }
 
-      return [{ name: normalize(raw), value: totalFallback }];
+      return [{ name: normalize(trimmed), value: totalFallback }];
     };
 
     const methods: Record<string, number> = {};
