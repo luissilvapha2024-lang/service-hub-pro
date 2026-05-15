@@ -36,16 +36,21 @@ export function WhatsAppButton({
   const handleClick = () => {
     if (cleanPhone.length < 10) return;
 
-    const encodedMessage = encodeURIComponent(sanitizedMessage);
+    // Normaliza Unicode para garantir que emojis sejam transmitidos corretamente (NFC)
+    const normalizedMessage = sanitizedMessage.normalize('NFC');
+    // encodeURIComponent garante UTF-8, mas alguns clientes WhatsApp interpretam '+' como espaço
+    // e quebram emojis. Usamos api.whatsapp.com que preserva corretamente caracteres Unicode.
+    const encodedMessage = encodeURIComponent(normalizedMessage);
     const mode = localStorage.getItem('whatsapp_open_mode') || 'auto';
-    
+
     let url: string;
     if (mode === 'web') {
       url = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
     } else if (mode === 'desktop') {
       url = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
     } else {
-      url = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+      // api.whatsapp.com lida melhor com emojis do que wa.me em alguns clientes desktop
+      url = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
     }
     
     window.open(url, '_blank', 'noopener,noreferrer');
