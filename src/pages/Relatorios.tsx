@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Download, BarChart3, PieChart, TrendingUp, TrendingDown, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search, Loader2, Package, DollarSign, Percent, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
+import { Calendar, Download, BarChart3, PieChart, TrendingUp, TrendingDown, Users, FileSpreadsheet, FileText, CalendarIcon, Filter, X, Search, Loader2, Package, DollarSign, Percent, ArrowUpRight, ArrowDownRight, Wallet, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -207,56 +207,62 @@ export default function Relatorios() {
           <p className="text-muted-foreground">Análises de lucro, receita e desempenho</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <Select value={period} onValueChange={handlePeriodChange}>
-            <SelectTrigger className="w-40">
-              <Calendar className="w-4 h-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="semana">Esta semana</SelectItem>
-              <SelectItem value="mes">Este mês</SelectItem>
-              <SelectItem value="trimestre">Trimestre</SelectItem>
-              <SelectItem value="ano">Este ano</SelectItem>
-              <SelectItem value="personalizado">Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
+          <Button variant="outline" onClick={() => window.print()} className="print:hidden">
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir
+          </Button>
+          <div className="flex items-center gap-3 print:hidden">
+            <Select value={period} onValueChange={handlePeriodChange}>
+              <SelectTrigger className="w-40">
+                <Calendar className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semana">Esta semana</SelectItem>
+                <SelectItem value="mes">Este mês</SelectItem>
+                <SelectItem value="trimestre">Trimestre</SelectItem>
+                <SelectItem value="ano">Este ano</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {period === 'personalizado' && (
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "dd/MM/yyyy") : "Início"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
-                </PopoverContent>
-              </Popover>
-              <span className="text-muted-foreground">até</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "dd/MM/yyyy") : "Fim"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
-                </PopoverContent>
-              </Popover>
-              <Button onClick={() => toast({ title: 'Período aplicado', description: `Filtrado de ${startDate ? format(startDate, 'dd/MM/yyyy') : '-'} até ${endDate ? format(endDate, 'dd/MM/yyyy') : '-'}` })} disabled={!startDate || !endDate}>
-                <Search className="w-4 h-4 mr-2" />
-                Pesquisar
-              </Button>
-            </div>
-          )}
+            {period === 'personalizado' && (
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "dd/MM/yyyy") : "Início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-muted-foreground">até</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "dd/MM/yyyy") : "Fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={() => toast({ title: 'Período aplicado', description: `Filtrado de ${startDate ? format(startDate, 'dd/MM/yyyy') : '-'} até ${endDate ? format(endDate, 'dd/MM/yyyy') : '-'}` })} disabled={!startDate || !endDate}>
+                  <Search className="w-4 h-4 mr-2" />
+                  Pesquisar
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap print:hidden">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-muted-foreground">Filtros:</span>
@@ -305,20 +311,22 @@ export default function Relatorios() {
       </div>
 
       {/* KPI Cards */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <KPICard icon={DollarSign} label="Faturamento Total" value={formatCurrency(summaryMetrics.totalRevenue)} color="primary" />
-          <KPICard icon={TrendingUp} label="Lucro Produtos" value={formatCurrency(summaryMetrics.productProfit)} color="success" subtitle={`Margem: ${summaryMetrics.productMargin.toFixed(1)}%`} />
-          <KPICard icon={Wallet} label="Receita OS" value={formatCurrency(summaryMetrics.totalOSRevenue)} color="info" subtitle={`${summaryMetrics.completedOrders} concluídas`} />
-          <KPICard icon={TrendingDown} label="Despesas" value={formatCurrency(summaryMetrics.expenses)} color="destructive" />
-          <KPICard icon={Package} label="Vendas" value={String(summaryMetrics.salesCount)} color="primary" subtitle={formatCurrency(summaryMetrics.totalSalesRevenue)} />
-          <KPICard icon={BarChart3} label="Ordens de Serviço" value={String(summaryMetrics.ordersCount)} color="info" subtitle={`${summaryMetrics.completedOrders} finalizadas`} />
-        </div>
-      )}
+      {
+        isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <KPICard icon={DollarSign} label="Faturamento Total" value={formatCurrency(summaryMetrics.totalRevenue)} color="primary" />
+            <KPICard icon={TrendingUp} label="Lucro Produtos" value={formatCurrency(summaryMetrics.productProfit)} color="success" subtitle={`Margem: ${summaryMetrics.productMargin.toFixed(1)}%`} />
+            <KPICard icon={Wallet} label="Receita OS" value={formatCurrency(summaryMetrics.totalOSRevenue)} color="info" subtitle={`${summaryMetrics.completedOrders} concluídas`} />
+            <KPICard icon={TrendingDown} label="Despesas" value={formatCurrency(summaryMetrics.expenses)} color="destructive" />
+            <KPICard icon={Package} label="Vendas" value={String(summaryMetrics.salesCount)} color="primary" subtitle={formatCurrency(summaryMetrics.totalSalesRevenue)} />
+            <KPICard icon={BarChart3} label="Ordens de Serviço" value={String(summaryMetrics.ordersCount)} color="info" subtitle={`${summaryMetrics.completedOrders} finalizadas`} />
+          </div>
+        )
+      }
 
       {/* Tabs */}
       <Tabs defaultValue="visao-geral" className="space-y-6">
@@ -357,7 +365,7 @@ export default function Relatorios() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                       <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
                       <Area type="monotone" dataKey="vendasReceita" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorReceita)" name="Receita Vendas" strokeWidth={2} />
@@ -418,7 +426,7 @@ export default function Relatorios() {
                     <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                       <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => formatCurrency(value)} />
                       <Legend />
                       <Bar dataKey="vendasReceita" fill="hsl(var(--success))" name="Receita" radius={[4, 4, 0, 0]} />
@@ -652,7 +660,7 @@ export default function Relatorios() {
                     <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                       <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => formatCurrency(value)} />
                       <Bar dataKey="osReceita" fill="hsl(var(--info))" name="Receita OS" radius={[4, 4, 0, 0]} />
                     </BarChart>
