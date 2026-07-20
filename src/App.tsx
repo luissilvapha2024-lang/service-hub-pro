@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const Login = lazy(() => import("./pages/Login"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
@@ -35,6 +36,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <SpeedInsights />
           <BrowserRouter>
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
